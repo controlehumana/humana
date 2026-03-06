@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Consulta CD Ideal — GHA</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14; --text:#e8edf5; --muted:#9aa4b2; --muted2:#c4cedd;
+      --line:rgba(255,255,255,.09); --accent:#7dd3fc;
+      --good:#34d399; --warn:#fbbf24; --bad:#fb7185;
+      --shadow:0 18px 60px rgba(0,0,0,.45); --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans";
+      background:radial-gradient(1200px 600px at 20% 0%,rgba(125,211,252,.10),transparent 60%),
+                 radial-gradient(900px 500px at 80% 15%,rgba(52,211,153,.10),transparent 60%),
+                 var(--bg);
+      color:var(--text);
+    }
+    .wrap{max-width:1140px;margin:0 auto;padding:22px 18px 48px}
+
+    /* ── header ── */
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+    h1{margin:0;font-size:22px;letter-spacing:.2px}
+    .sub{color:var(--muted2);font-size:13px;margin-top:6px;line-height:1.35}
+    .pillrow{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+    .pill{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted2)}
+    .tag{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-size:12px;color:var(--muted2)}
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--muted)}
+    .dot.good{background:var(--good)}.dot.bad{background:var(--bad)}
+
+    /* ── card/panel ── */
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.03));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .panel{padding:18px}
+
+    /* ── tabs ── */
+    .tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+    .tab{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--muted2);cursor:pointer;font-weight:650;font-size:13px;transition:all .15s}
+    .tab.active{border-color:rgba(125,211,252,.35);background:rgba(125,211,252,.10);color:var(--text)}
+    .view{display:none}.view.active{display:block}
+
+    /* ── form ── */
+    label{display:block;font-size:12px;color:var(--muted2);margin-bottom:6px}
+    input{width:100%;padding:12px;border-radius:14px;border:1px solid var(--line);background:rgba(15,21,34,.85);color:var(--text);outline:none;font-size:14px;transition:border-color .2s}
+    input:focus{border-color:rgba(125,211,252,.4)}
+    input::placeholder{color:rgba(154,164,178,.7)}
+    .row3{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px}
+    @media(max-width:680px){.row3{grid-template-columns:1fr}}
+    .btnrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    button{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);padding:11px 16px;border-radius:14px;cursor:pointer;font-weight:650;font-size:13px;transition:all .15s}
+    button:hover{background:rgba(255,255,255,.10)}
+    button.primary{background:linear-gradient(90deg,rgba(125,211,252,.20),rgba(52,211,153,.15));border-color:rgba(125,211,252,.35)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .hint{font-size:12px;color:var(--muted2);line-height:1.4}
+    .msg{margin-top:10px;font-size:13px;color:var(--muted2)}.msg.err{color:var(--bad)}
+
+    /* ── kpis ── */
+    .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    @media(max-width:480px){.kpis{grid-template-columns:1fr}}
+    .kpi{padding:14px;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.20)}
+    .kpi .l{font-size:12px;color:var(--muted2)}
+    .kpi .v{font-size:20px;font-weight:800;margin-top:6px;color:var(--text)}
+    .kpi.good .v{color:var(--good)}.kpi.warn .v{color:var(--warn)}
+    .kpi .d{font-size:12px;color:var(--muted2);margin-top:3px}
+
+    /* ── grid layout ── */
+    .grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+    @media(max-width:920px){.grid2{grid-template-columns:1fr}}
+
+    /* ── scroll/table ── */
+    .scroll{max-height:380px;overflow:auto;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.16)}
+    table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+    thead th{position:sticky;top:0;background:rgba(15,21,34,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:1;color:var(--muted2);padding:10px 10px;text-align:left;font-weight:600}
+    td{padding:9px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.07);color:var(--text)}
+    td.m{color:var(--muted2)}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.03)}
+
+    /* ── warnbox ── */
+    .warnbox{margin-top:10px;padding:10px 14px;border-radius:14px;background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.25);color:#ffe9ad;font-size:12px;line-height:1.5}
+    .infobox{margin-top:10px;padding:10px 14px;border-radius:14px;background:rgba(125,211,252,.08);border:1px solid rgba(125,211,252,.20);color:#bae6fd;font-size:12px;line-height:1.5}
+
+    /* ── tabela de atendimento ── */
+    .search-wrap{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+    .search-wrap input{flex:1;min-width:180px;padding:10px 12px;border-radius:12px}
+    .cd-filter{display:flex;gap:6px;flex-wrap:wrap}
+    .cd-chip{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--muted2);cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
+    .cd-chip.active{color:#000;font-weight:700}
+    .cd-chip[data-cd="BAURU"].active{background:#7ab8ff;border-color:#7ab8ff}
+    .cd-chip[data-cd="RIBEIRAO PRETO"].active{background:#a78bfa;border-color:#a78bfa}
+    .cd-chip[data-cd="SOROCABA"].active{background:#34d399;border-color:#34d399}
+    .cd-chip[data-cd="CAMPO GRANDE"].active{background:#fb923c;border-color:#fb923c}
+    .cd-chip[data-cd="PRESIDENTE PRUDENTE"].active{background:#fbbf24;border-color:#fbbf24}
+    .cd-chip[data-cd="UBERLANDIA"].active{background:#f87171;border-color:#f87171}
+    .cd-chip[data-cd="TODOS"].active{background:rgba(125,211,252,.25);border-color:rgba(125,211,252,.4);color:var(--text)}
+    .badge-cd{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+    .badge-BAURU{background:rgba(122,184,255,.2);color:#a0ceff}
+    .badge-RIBEIRAO{background:rgba(167,139,250,.2);color:#c4b5fd}
+    .badge-SOROCABA{background:rgba(52,211,153,.2);color:#6ee7b7}
+    .badge-CAMPO{background:rgba(251,146,60,.2);color:#fdba74}
+    .badge-PRUDENTE{background:rgba(251,191,36,.2);color:#fde68a}
+    .badge-UBERLANDIA{background:rgba(248,113,113,.2);color:#fca5a5}
+
+    /* ── status indicator ── */
+    .status-ok{color:var(--good);font-weight:700}
+    .status-err{color:var(--bad);font-weight:700}
+    .status-warn{color:var(--warn);font-weight:700}
+
+    /* ── map ── */
+    #map{width:100%;height:620px;border-radius:16px;border:1px solid var(--line);overflow:hidden;background:rgba(0,0,0,.18);margin-top:14px}
+    .mapTools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+    .small{font-size:12px;color:var(--muted2)}
+
+    /* ── pagination ── */
+    .pagrow{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--muted2);flex-wrap:wrap;gap:8px}
+    .pagbtns{display:flex;gap:5px}
+    .pgb{padding:5px 11px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);cursor:pointer;font-size:12px}
+    .pgb.active{background:rgba(125,211,252,.20);border-color:rgba(125,211,252,.4);color:var(--accent)}
+    .pgb:disabled{opacity:.35;cursor:not-allowed}
+
+    footer{margin-top:20px;color:var(--muted2);font-size:12px;line-height:1.6}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .leaflet-control-attribution{background:rgba(0,0,0,.35)!important;color:#cbd5e1!important}
+    .leaflet-control-attribution a{color:var(--accent)!important}
+    .leaflet-popup-content-wrapper{background:rgba(15,21,34,.95);color:var(--text);border:1px solid var(--line)}
+    .leaflet-popup-tip{background:rgba(15,21,34,.95)}
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Consulta de CD Ideal — GHA</h1>
+      <div class="sub">
+        Calcule o melhor CD por distância (Haversine) e confira a tabela oficial de atendimento.
+        <div class="pillrow">
+          <span class="pill">Entrada: CEP ou Cidade + UF</span>
+          <span class="pill">Top 2 CDs mais próximos</span>
+          <span class="pill">Tabela oficial com 538 cidades</span>
+          <span class="pill">Mapa interativo</span>
+        </div>
+      </div>
+    </div>
+    <div class="tag">
+      <span id="netDot" class="dot"></span>
+      <span id="netTxt">Verificando...</span>
+    </div>
+  </header>
+
+  <div class="card panel">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="consulta">🔍 Consulta</button>
+      <button class="tab" data-tab="tabela">📋 Tabela de Atendimento</button>
+      <button class="tab" data-tab="cds">🏭 CDs Cadastrados</button>
+    </div>
+
+    <!-- ══════════ ABA CONSULTA ══════════ -->
+    <div id="view-consulta" class="view active">
+
+      <!-- grid: form+mapa | resultado -->
+      <div class="grid2" style="align-items:start">
+
+        <!-- coluna esquerda: form + mapa -->
+        <section class="card panel" style="box-shadow:none">
+          <h2 style="margin:0 0 12px;font-size:16px">Consultar CD</h2>
+
+          <div class="row3">
+            <div>
+              <label>CEP de destino (opcional)</label>
+              <input id="cep" inputmode="numeric" placeholder="Ex.: 30881410"/>
+              <div class="hint" style="margin-top:5px">Preenche Cidade/UF automaticamente ao digitar os 8 dígitos.</div>
+            </div>
+            <div>
+              <label>UF</label>
+              <input id="uf" placeholder="MG" maxlength="2"/>
+            </div>
+            <div>
+              <label>Cidade de destino</label>
+              <input id="cidade" placeholder="Uberlândia"/>
+            </div>
+          </div>
+
+          <div class="btnrow">
+            <button class="primary" id="btnCalc">Calcular CDs ideais</button>
+            <button id="btnNova" title="Limpa todos os campos e resultados">🔄 Nova consulta</button>
+            <button id="btnClearCache">Limpar cache</button>
+            <span class="hint" id="hintCache"></span>
+          </div>
+
+          <div id="msg" class="msg"></div>
+
+          <!-- Mapa fica aqui, abaixo do form -->
+          <div id="mapaSection" style="margin-top:16px">
+            <div id="map" style="height:420px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.18)"></div>
+            <div class="mapTools" style="margin-top:8px">
+              <button id="btnFit">Enquadrar tudo</button>
+              <span class="small" id="mapStatus">Faça uma consulta para ver o destino no mapa.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- coluna direita: resultado da consulta -->
+        <aside class="card panel" style="box-shadow:none" id="resultPanel">
+          <h2 style="margin:0 0 12px;font-size:16px">Resultado</h2>
+          <div id="resultEmpty" style="color:var(--muted2);font-size:13px;padding:20px 0">
+            Faça uma consulta para ver o resultado aqui.
+          </div>
+          <div id="resultContent" style="display:none">
+            <div class="kpis">
+              <div class="kpi good">
+                <div class="l">1º CD ideal</div>
+                <div class="v" id="kpi1">—</div>
+                <div class="d" id="kpi1d"></div>
+              </div>
+              <div class="kpi warn">
+                <div class="l">2º CD ideal</div>
+                <div class="v" id="kpi2">—</div>
+                <div class="d" id="kpi2d"></div>
+              </div>
+            </div>
+            <div id="tabCompar" style="display:none;margin-top:14px">
+              <div id="tabComparBox"></div>
+            </div>
+            <div style="margin-top:14px" class="scroll">
+              <table>
+                <thead>
+                  <tr><th>CD</th><th>Distância</th><th>Rank</th><th>Tabela GHA</th></tr>
+                </thead>
+                <tbody id="tbodyAll"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="warnbox" style="margin-top:12px">
+            CEP → coordenada usa ViaCEP + Nominatim (OpenStreetMap). Necessita internet.
+          </div>
+        </aside>
+
+      </div><!-- /grid2 -->
+
+    </div><!-- /view-consulta -->
+
+    <!-- ══════════ ABA TABELA ══════════ -->
+    <div id="view-tabela" class="view">
+      <div style="margin-bottom:14px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">Tabela oficial de atendimento por CD</div>
+        <div class="hint">538 cidades mapeadas. Filtre por CD ou busque pelo nome da cidade.</div>
+      </div>
+
+      <div class="search-wrap">
+        <input id="tabelaSearch" placeholder="🔍 Buscar cidade..." style="max-width:300px"/>
+        <div class="cd-filter" id="cdFilter">
+          <span class="cd-chip active" data-cd="TODOS">Todos</span>
+          <span class="cd-chip" data-cd="BAURU">BRU1</span>
+          <span class="cd-chip" data-cd="RIBEIRAO PRETO">RBP</span>
+          <span class="cd-chip" data-cd="SOROCABA">SOR</span>
+          <span class="cd-chip" data-cd="CAMPO GRANDE">CGR</span>
+          <span class="cd-chip" data-cd="PRESIDENTE PRUDENTE">PPE</span>
+          <span class="cd-chip" data-cd="UBERLANDIA">UBE</span>
+        </div>
+      </div>
+
+      <div class="scroll" style="max-height:460px">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cidade</th>
+              <th>CD Tabela</th>
+              <th>Dist. ao CD Tabela</th>
+              <th>CD Ideal (distância)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyTabela"></tbody>
+        </table>
+      </div>
+
+      <div class="pagrow">
+        <span id="tabelaInfo"></span>
+        <div class="pagbtns" id="tabelaPag"></div>
+      </div>
+    </div><!-- /view-tabela -->
+
+    <!-- ══════════ ABA CDs CADASTRADOS ══════════ -->
+    <div id="view-cds" class="view">
+      <div style="margin-bottom:14px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">CDs Cadastrados</div>
+        <div class="hint">Centros de distribuição com coordenadas e códigos do sistema.</div>
+      </div>
+      <div class="scroll" style="max-height:400px">
+        <table>
+          <thead><tr><th>Código</th><th>Nome Completo</th><th>CEP</th><th>Lat / Lon</th></tr></thead>
+          <tbody id="tbodyCDs"></tbody>
+        </table>
+      </div>
+    </div><!-- /view-cds -->
+
+  </div><!-- /card -->
+
+  <footer>
+    Fontes: <a href="https://leafletjs.com/" target="_blank">Leaflet</a> ·
+    <a href="https://www.openstreetmap.org/" target="_blank">OpenStreetMap</a> ·
+    <a href="https://viacep.com.br" target="_blank">ViaCEP</a> ·
+    Tabela de atendimento GHA (Rev. 15/01/2026) · Haversine
+  </footer>
+</div>
+
+<script>
+(function(){
+const CDS = [
+  {cd:"BAURU/SP – MATRIZ",      cd_std:"BAURU",    codigo:"BRU1", cep:"17034-290", lat:-22.3145, lon:-49.0587},
+  {cd:"RIBEIRAO PRETO",         cd_std:"RIBEIRAO PRETO", codigo:"RBP",  cep:"14025-010", lat:-21.1767, lon:-47.8208},
+  {cd:"PRESIDENTE PRUDENTE",    cd_std:"PRESIDENTE PRUDENTE", codigo:"PPE",  cep:"19050-050", lat:-22.1256, lon:-51.3889},
+  {cd:"SOROCABA",               cd_std:"SOROCABA", codigo:"SOR",  cep:"18043-004", lat:-23.5015, lon:-47.4526},
+  {cd:"CAMPO GRANDE/MS",        cd_std:"CAMPO GRANDE", codigo:"CGR",  cep:"79002-371", lat:-20.4697, lon:-54.6201},
+  {cd:"UBERLANDIA/MG",          cd_std:"UBERLANDIA", codigo:"UBE",  cep:"38400-375", lat:-18.9186, lon:-48.2772}
+];
+
+// ── TABELA OFICIAL ──
+const TABELA_RAW = [{"cidade": "Águas de Sta Bárbara", "cd": "BAURU"}, {"cidade": "Andradina", "cd": "BAURU"}, {"cidade": "Aparecida", "cd": "BAURU"}, {"cidade": "Adamantina", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Campinas", "cd": "SOROCABA"}, {"cidade": "Alumínio", "cd": "SOROCABA"}, {"cidade": "Água Clara", "cd": "CAMPO GRANDE"}, {"cidade": "Cassia", "cd": "RIBEIRAO PRETO"}, {"cidade": "Araraquara", "cd": "RIBEIRAO PRETO"}, {"cidade": "São José dos Campos", "cd": "RIBEIRAO PRETO"}, {"cidade": "Abadia dos Dourados", "cd": "RIBEIRAO PRETO"}, {"cidade": "São José do Rio Preto (ONG´S/Home Care)", "cd": "RIBEIRAO PRETO"}, {"cidade": "São José do Rio Preto (Hospitais)", "cd": "RIBEIRAO PRETO"}, {"cidade": "Agudos", "cd": "BAURU"}, {"cidade": "Borborema", "cd": "BAURU"}, {"cidade": "Bragança paulista", "cd": "BAURU"}, {"cidade": "Alvares Machado", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Águas de lindóia", "cd": "SOROCABA"}, {"cidade": "Atibaia", "cd": "SOROCABA"}, {"cidade": "Alcinópolis", "cd": "CAMPO GRANDE"}, {"cidade": "Franca", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guariba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Taubaté", "cd": "RIBEIRAO PRETO"}, {"cidade": "Abaeté", "cd": "RIBEIRAO PRETO"}, {"cidade": "Barretos", "cd": "RIBEIRAO PRETO"}, {"cidade": "Alvaro Carvalho", "cd": "BAURU"}, {"cidade": "Cafelandia", "cd": "BAURU"}, {"cidade": "Caçapava", "cd": "BAURU"}, {"cidade": "Alvares Machado", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Americana", "cd": "SOROCABA"}, {"cidade": "Apiaí", "cd": "SOROCABA"}, {"cidade": "Amambai", "cd": "CAMPO GRANDE"}, {"cidade": "Itaú de Minas", "cd": "RIBEIRAO PRETO"}, {"cidade": "Jaboticabal", "cd": "RIBEIRAO PRETO"}, {"cidade": "Araguari", "cd": "RIBEIRAO PRETO"}, {"cidade": "Alto Alegre", "cd": "RIBEIRAO PRETO"}, {"cidade": "Cajobi", "cd": "RIBEIRAO PRETO"}, {"cidade": "Alvinlândia", "cd": "BAURU"}, {"cidade": "Clementina", "cd": "BAURU"}, {"cidade": "Cachoeira Paulista", "cd": "BAURU"}, {"cidade": "Araçatuba", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Amparo", "cd": "SOROCABA"}, {"cidade": "Araçariguama", "cd": "SOROCABA"}, {"cidade": "Anastácio", "cd": "CAMPO GRANDE"}, {"cidade": "Morro Agudo", "cd": "RIBEIRAO PRETO"}, {"cidade": "Matão", "cd": "RIBEIRAO PRETO"}, {"cidade": "Araxa", "cd": "RIBEIRAO PRETO"}, {"cidade": "Auriflama", "cd": "RIBEIRAO PRETO"}, {"cidade": "Cedral", "cd": "RIBEIRAO PRETO"}, {"cidade": "Arealva", "cd": "BAURU"}, {"cidade": "Coroados", "cd": "BAURU"}, {"cidade": "Caieiras", "cd": "BAURU"}, {"cidade": "Arco Iris", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Angatuba", "cd": "SOROCABA"}, {"cidade": "Areias", "cd": "SOROCABA"}, {"cidade": "Anaurilândia", "cd": "CAMPO GRANDE"}, {"cidade": "Santa Rita do Passa Quatro", "cd": "RIBEIRAO PRETO"}, {"cidade": "Mococa", "cd": "RIBEIRAO PRETO"}, {"cidade": "Cachoeira Dourada de Minas", "cd": "RIBEIRAO PRETO"}, {"cidade": "Avanhandava", "cd": "RIBEIRAO PRETO"}, {"cidade": "Colina", "cd": "RIBEIRAO PRETO"}, {"cidade": "Avaí", "cd": "BAURU"}, {"cidade": "Duartina", "cd": "BAURU"}, {"cidade": "Cajamar", "cd": "BAURU"}, {"cidade": "Assis", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Artur Nogueira", "cd": "SOROCABA"}, {"cidade": "Aruja", "cd": "SOROCABA"}, {"cidade": "Angélica", "cd": "CAMPO GRANDE"}, {"cidade": "São Simão", "cd": "RIBEIRAO PRETO"}, {"cidade": "Monte Alto", "cd": "RIBEIRAO PRETO"}, {"cidade": "Campina Verde", "cd": "RIBEIRAO PRETO"}, {"cidade": "Bady Bassit", "cd": "RIBEIRAO PRETO"}, {"cidade": "Fernando Prestes", "cd": "RIBEIRAO PRETO"}, {"cidade": "Avaré", "cd": "BAURU"}, {"cidade": "Garça", "cd": "BAURU"}, {"cidade": "campos do jordao", "cd": "BAURU"}, {"cidade": "Bastos", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Boituva", "cd": "SOROCABA"}, {"cidade": "Barueri", "cd": "SOROCABA"}, {"cidade": "Antônio João", "cd": "CAMPO GRANDE"}, {"cidade": "São Sebastião do Paraíso", "cd": "RIBEIRAO PRETO"}, {"cidade": "Pitangueiras", "cd": "RIBEIRAO PRETO"}, {"cidade": "Campos Altos", "cd": "RIBEIRAO PRETO"}, {"cidade": "Balsamo", "cd": "RIBEIRAO PRETO"}, {"cidade": "Fronteira / MG", "cd": "RIBEIRAO PRETO"}, {"cidade": "Bauru", "cd": "BAURU"}, {"cidade": "Getulina", "cd": "BAURU"}, {"cidade": "caraguatatuba", "cd": "BAURU"}, {"cidade": "Birigui", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Buri", "cd": "SOROCABA"}, {"cidade": "canas", "cd": "SOROCABA"}, {"cidade": "Aquidauana", "cd": "CAMPO GRANDE"}, {"cidade": "Serrana", "cd": "RIBEIRAO PRETO"}, {"cidade": "São Carlos", "cd": "RIBEIRAO PRETO"}, {"cidade": "Canapolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Barbosa", "cd": "RIBEIRAO PRETO"}, {"cidade": "Frutal/MG", "cd": "RIBEIRAO PRETO"}, {"cidade": "Balbinos", "cd": "BAURU"}, {"cidade": "Guarantã", "cd": "BAURU"}, {"cidade": "Guararema", "cd": "BAURU"}, {"cidade": "Candido Mota", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Capina do Monte Alegre", "cd": "SOROCABA"}, {"cidade": "Capão Bonito", "cd": "SOROCABA"}, {"cidade": "Aral Moreira", "cd": "CAMPO GRANDE"}, {"cidade": "RIBEIRÃO PRETO", "cd": "RIBEIRAO PRETO"}, {"cidade": "São José do Rio Pardo", "cd": "RIBEIRAO PRETO"}, {"cidade": "Capinópolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Bebedouro", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guaira", "cd": "RIBEIRAO PRETO"}, {"cidade": "Bariri", "cd": "BAURU"}, {"cidade": "Julio Mesquita", "cd": "BAURU"}, {"cidade": "Pindamonhangaba", "cd": "BAURU"}, {"cidade": "Chavantes", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Campo Limpo Paulista", "cd": "SOROCABA"}, {"cidade": "Carapicuíba", "cd": "SOROCABA"}, {"cidade": "Bandeirantes", "cd": "CAMPO GRANDE"}, {"cidade": "São Joaquim da Barra", "cd": "RIBEIRAO PRETO"}, {"cidade": "Sertãozinho", "cd": "RIBEIRAO PRETO"}, {"cidade": "Carmo do Paranaiba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Bilac", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guapiaçu", "cd": "RIBEIRAO PRETO"}, {"cidade": "Barra Bonita", "cd": "BAURU"}, {"cidade": "Lins", "cd": "BAURU"}, {"cidade": "São Paulo", "cd": "BAURU"}, {"cidade": "Dracena", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Capivari", "cd": "SOROCABA"}, {"cidade": "Cotia", "cd": "SOROCABA"}, {"cidade": "Bataguassu", "cd": "CAMPO GRANDE"}, {"cidade": "Igarapava", "cd": "RIBEIRAO PRETO"}, {"cidade": "Taquaritinga", "cd": "RIBEIRAO PRETO"}, {"cidade": "Catalão", "cd": "RIBEIRAO PRETO"}, {"cidade": "Braúna", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guapiaçu", "cd": "RIBEIRAO PRETO"}, {"cidade": "Bernardino de Campos", "cd": "BAURU"}, {"cidade": "Marília", "cd": "BAURU"}, {"cidade": "Iacri", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Charqueada", "cd": "SOROCABA"}, {"cidade": "Cruzeiro", "cd": "SOROCABA"}, {"cidade": "Batayporã", "cd": "CAMPO GRANDE"}, {"cidade": "Ituverava", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guaxupé (MG)", "cd": "RIBEIRAO PRETO"}, {"cidade": "Centralina", "cd": "RIBEIRAO PRETO"}, {"cidade": "Catanduva", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ibirá", "cd": "RIBEIRAO PRETO"}, {"cidade": "Bocaina", "cd": "BAURU"}, {"cidade": "Ocauçu", "cd": "BAURU"}, {"cidade": "Iepê", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Cerquilho", "cd": "SOROCABA"}, {"cidade": "Guapiara", "cd": "SOROCABA"}, {"cidade": "Bela Vista", "cd": "CAMPO GRANDE"}, {"cidade": "Porto Ferreira", "cd": "RIBEIRAO PRETO"}, {"cidade": "Monte Santo de Minas (MG)", "cd": "RIBEIRAO PRETO"}, {"cidade": "Conceição das Alagoas", "cd": "RIBEIRAO PRETO"}, {"cidade": "Fernandópolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ipiguá", "cd": "RIBEIRAO PRETO"}, {"cidade": "Boracéia", "cd": "BAURU"}, {"cidade": "Piratininga", "cd": "BAURU"}, {"cidade": "Maracaí", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Cesário Lange", "cd": "SOROCABA"}, {"cidade": "Guaratingueta", "cd": "SOROCABA"}, {"cidade": "Bodoquena", "cd": "CAMPO GRANDE"}, {"cidade": "Batatais", "cd": "RIBEIRAO PRETO"}, {"cidade": "Muzambinho (MG)", "cd": "RIBEIRAO PRETO"}, {"cidade": "Conqusita", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guararapes", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itajobi", "cd": "RIBEIRAO PRETO"}, {"cidade": "Borebi", "cd": "BAURU"}, {"cidade": "Ubirajara", "cd": "BAURU"}, {"cidade": "Martinópolis", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Conchal", "cd": "SOROCABA"}, {"cidade": "Ibiúna", "cd": "SOROCABA"}, {"cidade": "Bonito", "cd": "CAMPO GRANDE"}, {"cidade": "Altinópolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Águas da Prata", "cd": "RIBEIRAO PRETO"}, {"cidade": "Coromandel", "cd": "RIBEIRAO PRETO"}, {"cidade": "Glicério", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itapagipe/MG", "cd": "RIBEIRAO PRETO"}, {"cidade": "Botucatu", "cd": "BAURU"}, {"cidade": "Vera Cruz", "cd": "BAURU"}, {"cidade": "Osvaldo Cruz", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Cordeirópolis", "cd": "SOROCABA"}, {"cidade": "Igaratá", "cd": "SOROCABA"}, {"cidade": "Brasilândia", "cd": "CAMPO GRANDE"}, {"cidade": "Brodowski", "cd": "RIBEIRAO PRETO"}, {"cidade": "São João da Boa Vista", "cd": "RIBEIRAO PRETO"}, {"cidade": "Delta", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guaiçara", "cd": "RIBEIRAO PRETO"}, {"cidade": "Jaci", "cd": "RIBEIRAO PRETO"}, {"cidade": "Braúna", "cd": "BAURU"}, {"cidade": "Ourinhos", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Córrego do Bom Jesus", "cd": "SOROCABA"}, {"cidade": "Ilha bela", "cd": "SOROCABA"}, {"cidade": "Caarapó", "cd": "CAMPO GRANDE"}, {"cidade": "Américo Brasiliense", "cd": "RIBEIRAO PRETO"}, {"cidade": "Poços de Caldas (MG)", "cd": "RIBEIRAO PRETO"}, {"cidade": "Divinópolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ilha Solteira", "cd": "RIBEIRAO PRETO"}, {"cidade": "Monte Aprazível", "cd": "RIBEIRAO PRETO"}, {"cidade": "Brotas", "cd": "BAURU"}, {"cidade": "Ouro Verde", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "corumbatai", "cd": "SOROCABA"}, {"cidade": "Ilha Comprida", "cd": "SOROCABA"}, {"cidade": "Camapuã", "cd": "CAMPO GRANDE"}, {"cidade": "Leme", "cd": "RIBEIRAO PRETO"}, {"cidade": "Casa Branca", "cd": "RIBEIRAO PRETO"}, {"cidade": "Estrela do Sul", "cd": "RIBEIRAO PRETO"}, {"cidade": "Iturama", "cd": "RIBEIRAO PRETO"}, {"cidade": "Monte Azul Paulista", "cd": "RIBEIRAO PRETO"}, {"cidade": "Cabrália Paulista", "cd": "BAURU"}, {"cidade": "Palmital", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Cosmópolis", "cd": "SOROCABA"}, {"cidade": "Indaiatuba", "cd": "SOROCABA"}, {"cidade": "Campo Grande", "cd": "CAMPO GRANDE"}, {"cidade": "Araras", "cd": "RIBEIRAO PRETO"}, {"cidade": "Vargem Grande do Sul", "cd": "RIBEIRAO PRETO"}, {"cidade": "Gurinhatã", "cd": "RIBEIRAO PRETO"}, {"cidade": "Jales", "cd": "RIBEIRAO PRETO"}, {"cidade": "Novais", "cd": "RIBEIRAO PRETO"}, {"cidade": "Campos Novos Paulista", "cd": "BAURU"}, {"cidade": "Panorama", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Engenheiro Coelho", "cd": "SOROCABA"}, {"cidade": "Itaquaquecetuba", "cd": "SOROCABA"}, {"cidade": "Caracol", "cd": "CAMPO GRANDE"}, {"cidade": "Limeira", "cd": "RIBEIRAO PRETO"}, {"cidade": "Pirassununga", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ibiá", "cd": "RIBEIRAO PRETO"}, {"cidade": "José Bonifácio", "cd": "RIBEIRAO PRETO"}, {"cidade": "Novo Horizonte", "cd": "RIBEIRAO PRETO"}, {"cidade": "Cerqueira César", "cd": "BAURU"}, {"cidade": "Paraguaçu Paulista", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Estiva Gerbi", "cd": "SOROCABA"}, {"cidade": "Itapevi", "cd": "SOROCABA"}, {"cidade": "Cassilândia", "cd": "CAMPO GRANDE"}, {"cidade": "Santa Cruz das Palmeiras", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ibitura de Minas", "cd": "RIBEIRAO PRETO"}, {"cidade": "Mira Estrela", "cd": "RIBEIRAO PRETO"}, {"cidade": "Olímpia", "cd": "RIBEIRAO PRETO"}, {"cidade": "Dois Corrégos", "cd": "BAURU"}, {"cidade": "Parapuã", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Holambra", "cd": "SOROCABA"}, {"cidade": "Itapecerica da Serra", "cd": "SOROCABA"}, {"cidade": "Chapadão do Sul", "cd": "CAMPO GRANDE"}, {"cidade": "Cajuru", "cd": "RIBEIRAO PRETO"}, {"cidade": "Indianópolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Mirandópolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Onda Verde", "cd": "RIBEIRAO PRETO"}, {"cidade": "Espírito Santo do Turvo", "cd": "BAURU"}, {"cidade": "Pereira Barreto", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Hortolândia", "cd": "SOROCABA"}, {"cidade": "Itapetininga", "cd": "SOROCABA"}, {"cidade": "Corguinho", "cd": "CAMPO GRANDE"}, {"cidade": "Passos (MG)", "cd": "RIBEIRAO PRETO"}, {"cidade": "Irai de Minas", "cd": "RIBEIRAO PRETO"}, {"cidade": "Mirassol", "cd": "RIBEIRAO PRETO"}, {"cidade": "Palestina", "cd": "RIBEIRAO PRETO"}, {"cidade": "Fartura", "cd": "BAURU"}, {"cidade": "Penapolis", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Indaiatuba", "cd": "SOROCABA"}, {"cidade": "Jacareí", "cd": "SOROCABA"}, {"cidade": "Coronel Sapucaia", "cd": "CAMPO GRANDE"}, {"cidade": "Piracicaba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ituiutaba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Palmeira D´oeste", "cd": "RIBEIRAO PRETO"}, {"cidade": "Paraíso", "cd": "RIBEIRAO PRETO"}, {"cidade": "Fernão", "cd": "BAURU"}, {"cidade": "Pompéia", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Iracemápolis", "cd": "SOROCABA"}, {"cidade": "Jarinu", "cd": "SOROCABA"}, {"cidade": "Corumbá", "cd": "CAMPO GRANDE"}, {"cidade": "Espírito Santo do Pinhal", "cd": "RIBEIRAO PRETO"}, {"cidade": "Matutina", "cd": "RIBEIRAO PRETO"}, {"cidade": "Pedranopolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Pindorama", "cd": "RIBEIRAO PRETO"}, {"cidade": "Galia", "cd": "BAURU"}, {"cidade": "Pres. Bernardes", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Itapira", "cd": "SOROCABA"}, {"cidade": "Joanópolis", "cd": "SOROCABA"}, {"cidade": "Costa Rica", "cd": "CAMPO GRANDE"}, {"cidade": "Monte Alegre de Minas", "cd": "RIBEIRAO PRETO"}, {"cidade": "Populina", "cd": "RIBEIRAO PRETO"}, {"cidade": "Poloni", "cd": "RIBEIRAO PRETO"}, {"cidade": "Guaimbé", "cd": "BAURU"}, {"cidade": "Pres. Epitácio", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Itatiba", "cd": "SOROCABA"}, {"cidade": "Lorena", "cd": "SOROCABA"}, {"cidade": "Coxim", "cd": "CAMPO GRANDE"}, {"cidade": "Monte Carmelo", "cd": "RIBEIRAO PRETO"}, {"cidade": "Promissão", "cd": "RIBEIRAO PRETO"}, {"cidade": "Roseira", "cd": "RIBEIRAO PRETO"}, {"cidade": "Iacanga", "cd": "BAURU"}, {"cidade": "Pres. Prudente", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Itapeva", "cd": "SOROCABA"}, {"cidade": "Mairinque", "cd": "SOROCABA"}, {"cidade": "Deodápolis", "cd": "CAMPO GRANDE"}, {"cidade": "Nova Ponte", "cd": "RIBEIRAO PRETO"}, {"cidade": "Santa Fé do Sul", "cd": "RIBEIRAO PRETO"}, {"cidade": "Santa Adélia", "cd": "RIBEIRAO PRETO"}, {"cidade": "Iaras", "cd": "BAURU"}, {"cidade": "Pres. Venceslau", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Itu", "cd": "SOROCABA"}, {"cidade": "Mairiporã", "cd": "SOROCABA"}, {"cidade": "Dois Irmãos do Buriti", "cd": "CAMPO GRANDE"}, {"cidade": "Patos de Minas", "cd": "RIBEIRAO PRETO"}, {"cidade": "Sebastianópolis do Sul", "cd": "RIBEIRAO PRETO"}, {"cidade": "Severínia", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ibitinga", "cd": "BAURU"}, {"cidade": "Rancharia", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Itupeva", "cd": "SOROCABA"}, {"cidade": "Mogi das Cruzes", "cd": "SOROCABA"}, {"cidade": "Douradina", "cd": "CAMPO GRANDE"}, {"cidade": "Patrocínio", "cd": "RIBEIRAO PRETO"}, {"cidade": "Tanapi", "cd": "RIBEIRAO PRETO"}, {"cidade": "Tabapuã", "cd": "RIBEIRAO PRETO"}, {"cidade": "Igaraçu do Tietê", "cd": "BAURU"}, {"cidade": "Regente Feijó", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Jacutinga", "cd": "SOROCABA"}, {"cidade": "Monteiro Lobato", "cd": "SOROCABA"}, {"cidade": "Dourados", "cd": "CAMPO GRANDE"}, {"cidade": "Pedrinópolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Valparaíso", "cd": "RIBEIRAO PRETO"}, {"cidade": "Taiaçu", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ipaussu", "cd": "BAURU"}, {"cidade": "Rinópolis", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Jaguariúna", "cd": "SOROCABA"}, {"cidade": "natividade da serra", "cd": "SOROCABA"}, {"cidade": "Eldorado", "cd": "CAMPO GRANDE"}, {"cidade": "Perdizes", "cd": "RIBEIRAO PRETO"}, {"cidade": "Vitória Brasil", "cd": "RIBEIRAO PRETO"}, {"cidade": "Taquaral", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itai", "cd": "BAURU"}, {"cidade": "Santa Cruz do Rio Pardo", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Jundiaí", "cd": "SOROCABA"}, {"cidade": "Nazaré pta", "cd": "SOROCABA"}, {"cidade": "Fátima do Sul", "cd": "CAMPO GRANDE"}, {"cidade": "Pirajuba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Votuporanga", "cd": "RIBEIRAO PRETO"}, {"cidade": "Taquaritinga", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itajú", "cd": "BAURU"}, {"cidade": "Santo Anastácio", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Lindóia", "cd": "SOROCABA"}, {"cidade": "paraibuna", "cd": "SOROCABA"}, {"cidade": "Figueirão", "cd": "CAMPO GRANDE"}, {"cidade": "Prata", "cd": "RIBEIRAO PRETO"}, {"cidade": "Turmalina", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itápolis", "cd": "BAURU"}, {"cidade": "Tupã", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Louveira", "cd": "SOROCABA"}, {"cidade": "Piedade", "cd": "SOROCABA"}, {"cidade": "Glória de Dourados", "cd": "CAMPO GRANDE"}, {"cidade": "Presidente Olegário", "cd": "RIBEIRAO PRETO"}, {"cidade": "Valentin Gentil", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itaporanga", "cd": "BAURU"}, {"cidade": "Tupi Paulista", "cd": "PRESIDENTE PRUDENTE"}, {"cidade": "Mogi Guaçu", "cd": "SOROCABA"}, {"cidade": "Pilar do Sul", "cd": "SOROCABA"}, {"cidade": "Guia Lopes da Laguna", "cd": "CAMPO GRANDE"}, {"cidade": "Romaria", "cd": "RIBEIRAO PRETO"}, {"cidade": "Viradouro", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itapuí", "cd": "BAURU"}, {"cidade": "Mogi-Mirim", "cd": "SOROCABA"}, {"cidade": "piquete", "cd": "SOROCABA"}, {"cidade": "Iguatemi", "cd": "CAMPO GRANDE"}, {"cidade": "Sacramento", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itirapina", "cd": "BAURU"}, {"cidade": "mombuca", "cd": "SOROCABA"}, {"cidade": "Piracaia", "cd": "SOROCABA"}, {"cidade": "Inocência", "cd": "CAMPO GRANDE"}, {"cidade": "Santa Juliana", "cd": "RIBEIRAO PRETO"}, {"cidade": "Jaú", "cd": "BAURU"}, {"cidade": "Monte Mor", "cd": "SOROCABA"}, {"cidade": "Poa", "cd": "SOROCABA"}, {"cidade": "Itaporã", "cd": "CAMPO GRANDE"}, {"cidade": "Santa Vitória", "cd": "RIBEIRAO PRETO"}, {"cidade": "Laranjal Paulista", "cd": "BAURU"}, {"cidade": "Morungaba", "cd": "SOROCABA"}, {"cidade": "potim", "cd": "SOROCABA"}, {"cidade": "Itaquiraí", "cd": "CAMPO GRANDE"}, {"cidade": "São Gotardo", "cd": "RIBEIRAO PRETO"}, {"cidade": "Lençois Paulista", "cd": "BAURU"}, {"cidade": "Nova Odessa", "cd": "SOROCABA"}, {"cidade": "queluz", "cd": "SOROCABA"}, {"cidade": "Ivinhema", "cd": "CAMPO GRANDE"}, {"cidade": "Serra do Salitre", "cd": "RIBEIRAO PRETO"}, {"cidade": "Lucianópolis", "cd": "BAURU"}, {"cidade": "Nova Campina", "cd": "SOROCABA"}, {"cidade": "redenção da serra", "cd": "SOROCABA"}, {"cidade": "Japorã", "cd": "CAMPO GRANDE"}, {"cidade": "Tupaciguara", "cd": "RIBEIRAO PRETO"}, {"cidade": "Lupércio", "cd": "BAURU"}, {"cidade": "Paulínia", "cd": "SOROCABA"}, {"cidade": "Registro", "cd": "SOROCABA"}, {"cidade": "Jaraguari", "cd": "CAMPO GRANDE"}, {"cidade": "Uberaba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Macatuba", "cd": "BAURU"}, {"cidade": "Pedra bela", "cd": "SOROCABA"}, {"cidade": "Ribeirão Branco", "cd": "SOROCABA"}, {"cidade": "Jardim", "cd": "CAMPO GRANDE"}, {"cidade": "Uberlândia", "cd": "RIBEIRAO PRETO"}, {"cidade": "Manduri", "cd": "BAURU"}, {"cidade": "Pedreira", "cd": "SOROCABA"}, {"cidade": "Ribeirão Grande", "cd": "SOROCABA"}, {"cidade": "Jatei", "cd": "CAMPO GRANDE"}, {"cidade": "Mineiros do Tietê", "cd": "BAURU"}, {"cidade": "Pinhalzinho", "cd": "SOROCABA"}, {"cidade": "Roseira", "cd": "SOROCABA"}, {"cidade": "Juti", "cd": "CAMPO GRANDE"}, {"cidade": "Paranapanea", "cd": "BAURU"}, {"cidade": "Porto Feliz", "cd": "SOROCABA"}, {"cidade": "Socorro", "cd": "SOROCABA"}, {"cidade": "Ladário", "cd": "CAMPO GRANDE"}, {"cidade": "Pardinho", "cd": "BAURU"}, {"cidade": "Rafard", "cd": "SOROCABA"}, {"cidade": "Santa Branca", "cd": "SOROCABA"}, {"cidade": "Laguna Carapã", "cd": "CAMPO GRANDE"}, {"cidade": "Paulistânia", "cd": "BAURU"}, {"cidade": "Rio das pedras", "cd": "SOROCABA"}, {"cidade": "santo antonio do pinhal", "cd": "SOROCABA"}, {"cidade": "Maracaju", "cd": "CAMPO GRANDE"}, {"cidade": "Pederneiras", "cd": "BAURU"}, {"cidade": "Rio Claro", "cd": "SOROCABA"}, {"cidade": "são bento do sapucai", "cd": "SOROCABA"}, {"cidade": "Miranda", "cd": "CAMPO GRANDE"}, {"cidade": "Pereiras", "cd": "BAURU"}, {"cidade": "Riversul", "cd": "SOROCABA"}, {"cidade": "são luiz do paraitinga", "cd": "SOROCABA"}, {"cidade": "Mundo Novo", "cd": "CAMPO GRANDE"}, {"cidade": "Pirajú", "cd": "BAURU"}, {"cidade": "Salto", "cd": "SOROCABA"}, {"cidade": "Santana de Parnaíba", "cd": "SOROCABA"}, {"cidade": "Naviraí", "cd": "CAMPO GRANDE"}, {"cidade": "Pirajuí", "cd": "BAURU"}, {"cidade": "Salto de Pirapora", "cd": "SOROCABA"}, {"cidade": "Santo André", "cd": "SOROCABA"}, {"cidade": "Nioaque", "cd": "CAMPO GRANDE"}, {"cidade": "Pongaí", "cd": "BAURU"}, {"cidade": "Santa Bárbara", "cd": "SOROCABA"}, {"cidade": "São Miguel Arcanjo", "cd": "SOROCABA"}, {"cidade": "Nova Alvorada do Sul", "cd": "CAMPO GRANDE"}, {"cidade": "Pratânia", "cd": "BAURU"}, {"cidade": "Santa Cruz da Conceição", "cd": "SOROCABA"}, {"cidade": "São Roque", "cd": "SOROCABA"}, {"cidade": "Nova Andradina", "cd": "CAMPO GRANDE"}, {"cidade": "Reginópolis", "cd": "BAURU"}, {"cidade": "santa gertrudes", "cd": "SOROCABA"}, {"cidade": "são sebastiao", "cd": "SOROCABA"}, {"cidade": "Novo Horizonte do Sul", "cd": "CAMPO GRANDE"}, {"cidade": "Ribeirão do Sul", "cd": "BAURU"}, {"cidade": "Santo Antônio da Posse", "cd": "SOROCABA"}, {"cidade": "São Vicente", "cd": "SOROCABA"}, {"cidade": "Paranhos", "cd": "CAMPO GRANDE"}, {"cidade": "Sabino", "cd": "BAURU"}, {"cidade": "santo antonio do jardim", "cd": "SOROCABA"}, {"cidade": "silveiras", "cd": "SOROCABA"}, {"cidade": "Pedro Gomes", "cd": "CAMPO GRANDE"}, {"cidade": "São Manuel", "cd": "BAURU"}, {"cidade": "São Pedro", "cd": "SOROCABA"}, {"cidade": "Sta Isabel", "cd": "SOROCABA"}, {"cidade": "Ponta Porã", "cd": "CAMPO GRANDE"}, {"cidade": "São Pedro do Turvo", "cd": "BAURU"}, {"cidade": "Serra Negra", "cd": "SOROCABA"}, {"cidade": "Suzano", "cd": "SOROCABA"}, {"cidade": "Porto Murtinho", "cd": "CAMPO GRANDE"}, {"cidade": "Sarutaia", "cd": "BAURU"}, {"cidade": "Socorro", "cd": "SOROCABA"}, {"cidade": "Taboão da Serra", "cd": "SOROCABA"}, {"cidade": "Ribas do Rio Pardo", "cd": "CAMPO GRANDE"}, {"cidade": "Taguaí", "cd": "BAURU"}, {"cidade": "Sorocaba", "cd": "SOROCABA"}, {"cidade": "tremembe", "cd": "SOROCABA"}, {"cidade": "Rio Brilhante", "cd": "CAMPO GRANDE"}, {"cidade": "Taquarituba", "cd": "BAURU"}, {"cidade": "Sumaré", "cd": "SOROCABA"}, {"cidade": "Ubatuba", "cd": "SOROCABA"}, {"cidade": "Rio Negro", "cd": "CAMPO GRANDE"}, {"cidade": "Tatuí", "cd": "SOROCABA"}, {"cidade": "Varzea Paulista", "cd": "SOROCABA"}, {"cidade": "Rio Verde do Mato Grosso", "cd": "CAMPO GRANDE"}, {"cidade": "Taquarivaí", "cd": "SOROCABA"}, {"cidade": "Rochedo", "cd": "CAMPO GRANDE"}, {"cidade": "Tiete", "cd": "SOROCABA"}, {"cidade": "Santa Rita do Pardo", "cd": "CAMPO GRANDE"}, {"cidade": "Valinhos", "cd": "SOROCABA"}, {"cidade": "São Gabriel do Oeste", "cd": "CAMPO GRANDE"}, {"cidade": "Varzea Paulista", "cd": "SOROCABA"}, {"cidade": "Selvíria", "cd": "CAMPO GRANDE"}, {"cidade": "Vinhedo", "cd": "SOROCABA"}, {"cidade": "Sete Quedas", "cd": "CAMPO GRANDE"}, {"cidade": "Votorantim", "cd": "SOROCABA"}, {"cidade": "Sidrolândia", "cd": "CAMPO GRANDE"}, {"cidade": "Sonora", "cd": "CAMPO GRANDE"}, {"cidade": "Tacuru", "cd": "CAMPO GRANDE"}, {"cidade": "Taquarussu", "cd": "CAMPO GRANDE"}, {"cidade": "Terenos", "cd": "CAMPO GRANDE"}, {"cidade": "Vicentina", "cd": "CAMPO GRANDE"}, {"cidade": "Aparecida do Taboado (MS)", "cd": "CAMPO GRANDE"}, {"cidade": "Paranaíba (MS)", "cd": "CAMPO GRANDE"}, {"cidade": "Tres Lagoas (MS)", "cd": "CAMPO GRANDE"}, {"cidade": "Araguari", "cd": "UBERLANDIA"}, {"cidade": "Araxa", "cd": "UBERLANDIA"}, {"cidade": "Brasilia", "cd": "UBERLANDIA"}, {"cidade": "Canapolis", "cd": "UBERLANDIA"}, {"cidade": "Capinopolis", "cd": "UBERLANDIA"}, {"cidade": "Ituiutaba", "cd": "UBERLANDIA"}, {"cidade": "Iturama", "cd": "UBERLANDIA"}, {"cidade": "Jaragua", "cd": "UBERLANDIA"}, {"cidade": "Patos de Minas", "cd": "UBERLANDIA"}, {"cidade": "Pirenopolis", "cd": "UBERLANDIA"}, {"cidade": "Sacramento", "cd": "UBERLANDIA"}, {"cidade": "Tupaciguara", "cd": "UBERLANDIA"}, {"cidade": "Uberaba", "cd": "UBERLANDIA"}, {"cidade": "Uberlandia", "cd": "UBERLANDIA"}, {"cidade": "Concordia", "cd": "BAURU"}, {"cidade": "Itabaiana", "cd": "BAURU"}, {"cidade": "Nossa Senhora do Socorro", "cd": "BAURU"}, {"cidade": "Novo Hamburgo", "cd": "BAURU"}, {"cidade": "Aguas Lindas de Goias", "cd": "RIBEIRAO PRETO"}, {"cidade": "Anapolis", "cd": "RIBEIRAO PRETO"}, {"cidade": "Belo Horizonte", "cd": "RIBEIRAO PRETO"}, {"cidade": "Carmo do Paranaiba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Catalao", "cd": "RIBEIRAO PRETO"}, {"cidade": "Contagem", "cd": "RIBEIRAO PRETO"}, {"cidade": "Goiania", "cd": "RIBEIRAO PRETO"}, {"cidade": "Ipatinga", "cd": "RIBEIRAO PRETO"}, {"cidade": "Itumbiara", "cd": "RIBEIRAO PRETO"}, {"cidade": "Janauba", "cd": "RIBEIRAO PRETO"}, {"cidade": "Juiz de Fora", "cd": "RIBEIRAO PRETO"}, {"cidade": "Luziania", "cd": "RIBEIRAO PRETO"}, {"cidade": "Monte Carmelo", "cd": "RIBEIRAO PRETO"}, {"cidade": "Montes Claros", "cd": "RIBEIRAO PRETO"}, {"cidade": "Muriae", "cd": "RIBEIRAO PRETO"}, {"cidade": "Patrocinio Paulista", "cd": "RIBEIRAO PRETO"}, {"cidade": "Perdizes", "cd": "RIBEIRAO PRETO"}, {"cidade": "Pirapora", "cd": "RIBEIRAO PRETO"}, {"cidade": "Piumhi", "cd": "RIBEIRAO PRETO"}, {"cidade": "Pouso Alegre", "cd": "RIBEIRAO PRETO"}, {"cidade": "Timoteo", "cd": "RIBEIRAO PRETO"}, {"cidade": "Tres Coracoes", "cd": "RIBEIRAO PRETO"}, {"cidade": "Unai", "cd": "RIBEIRAO PRETO"}];
+
+// normalizar
+function norm(s){
+  if(!s) return '';
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+          .toUpperCase().replace(/\(.*?\)/g,'').trim();
+}
+
+// construir lookup cidade→cd_tabela (normalizado)
+const tabelaMap = {};
+TABELA_RAW.forEach(r=>{
+  const k = norm(r.cidade);
+  if(k && !tabelaMap[k]) tabelaMap[k] = r.cd;
+});
+
+// lookup tabela usando cidade_std
+function cdTabela(cidadeStd){
+  return tabelaMap[norm(cidadeStd)] || null;
+}
+
+// ── HELPERS ──
+const $ = id => document.getElementById(id);
+const onlyDigits = s => (s||'').replace(/\D+/g,'');
+const normUF = s => (s||'').trim().toUpperCase().slice(0,2);
+const fmtKm = x => (x==null||!isFinite(x)) ? '—' : Math.round(x).toLocaleString('pt-BR')+' km';
+
+function haversine(la1,lo1,la2,lo2){
+  const R=6371,r=d=>d*Math.PI/180,dLa=r(la2-la1),dLo=r(lo2-lo1);
+  const a=Math.sin(dLa/2)**2+Math.cos(r(la1))*Math.cos(r(la2))*Math.sin(dLo/2)**2;
+  return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// cache
+const cacheKey=(k,q)=>`CDID_${k}_${q}`;
+function getCache(k,q){try{const r=localStorage.getItem(cacheKey(k,q));return r?JSON.parse(r):null;}catch{return null;}}
+function setCache(k,q,v){try{localStorage.setItem(cacheKey(k,q),JSON.stringify(v));}catch{}}
+function cacheCount(){
+  let n=0;for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('CDID_'))n++;}
+  $('hintCache').textContent=`Cache: ${n} item(ns)`;
+}
+cacheCount();
+
+function msg(t,err=false){const e=$('msg');e.textContent=t||'';e.classList.toggle('err',!!err);}
+
+// network
+function net(){const o=navigator.onLine;$('netDot').className='dot '+(o?'good':'bad');$('netTxt').textContent=o?'Online':'Offline';}
+window.addEventListener('online',net);window.addEventListener('offline',net);net();
+
+// ── GEOCODING ──
+async function viaCep(cep){
+  const c=onlyDigits(cep);
+  if(c.length!==8) throw new Error('CEP inválido (8 dígitos).');
+  const cached=getCache('CEP',c);if(cached)return cached;
+  const r=await fetch(`https://viacep.com.br/ws/${c}/json/`,{cache:'no-store'});
+  if(!r.ok) throw new Error('Falha ao consultar ViaCEP.');
+  const j=await r.json();
+  if(j.erro) throw new Error('CEP não encontrado.');
+  const out={uf:j.uf,cidade:j.localidade};
+  setCache('CEP',c,out);return out;
+}
+
+async function geocodeCity(cidade,uf){
+  const q=`${cidade}, ${uf}, Brasil`;
+  const cached=getCache('GEO',q);if(cached)return cached;
+  const url=`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok) throw new Error('Falha ao geocodificar.');
+  const j=await r.json();
+  if(!j.length) throw new Error('Não encontrei coordenadas para: '+q);
+  const out={lat:parseFloat(j[0].lat),lon:parseFloat(j[0].lon),display:j[0].display_name||q,cidade,uf};
+  setCache('GEO',q,out);return out;
+}
+
+async function getDestCoords(){
+  const cep=$('cep').value.trim();
+  const uf=normUF($('uf').value);
+  const cidade=($('cidade').value||'').trim();
+  if(cep){const v=await viaCep(cep);return await geocodeCity(v.cidade,v.uf);}
+  if(!cidade||!uf) throw new Error('Informe CEP ou Cidade + UF.');
+  return await geocodeCity(cidade,uf);
+}
+
+// ── CD BADGE ──
+const CD_CODIGO = {
+  'BAURU':'BRU1','RIBEIRAO PRETO':'RBP','PRESIDENTE PRUDENTE':'PPE',
+  'SOROCABA':'SOR','CAMPO GRANDE':'CGR','UBERLANDIA':'UBE'
+};
+function cdBadge(cd){
+  if(!cd) return '<span style="color:var(--muted2)">—</span>';
+  const label = CD_CODIGO[cd] ? CD_CODIGO[cd] : cd;
+  const cdColorMap={
+    'BAURU':'badge-BAURU','RIBEIRAO PRETO':'badge-RIBEIRAO',
+    'SOROCABA':'badge-SOROCABA','CAMPO GRANDE':'badge-CAMPO',
+    'PRESIDENTE PRUDENTE':'badge-PRUDENTE','UBERLANDIA':'badge-UBERLANDIA'
+  };
+  const cls=cdColorMap[cd]||'';
+  return `<span class="badge-cd ${cls}">${label}</span>`;
+}
+
+// ── RENDER CDs ──
+function renderCDs(){
+  const tb=$('tbodyCDs');tb.innerHTML='';
+  CDS.forEach(cd=>{
+    tb.insertAdjacentHTML('beforeend',`<tr>
+      <td><span style="font-family:monospace;font-weight:800;font-size:14px;color:var(--accent)">${cd.codigo}</span></td>
+      <td><b>${cd.cd_std}</b><div style="font-size:11px;color:var(--muted2)">${cd.cd}</div></td>
+      <td style="color:var(--muted2)">${cd.cep}</td>
+      <td style="color:var(--muted2);font-size:12px">${cd.lat.toFixed(4)}, ${cd.lon.toFixed(4)}</td>
+    </tr>`);
+  });
+}
+renderCDs();
+// Iniciar mapa após o restante da página carregar
+setTimeout(ensureMap, 200);
+
+// ── RENDER RANKING ──
+function renderRanking(ranked, destCidade){
+  const tb=$('tbodyAll');tb.innerHTML='';
+  const cdTab = destCidade ? cdTabela(destCidade) : null;
+  ranked.forEach(it=>{
+    const rank = it.rank===1
+      ? `<span class="tag"><span class="dot good"></span>1º</span>`
+      : it.rank===2
+      ? `<span class="tag"><span class="dot" style="background:var(--warn)"></span>2º</span>`
+      : `<span style="color:var(--muted2)">${it.rank}º</span>`;
+    const tabMatch = cdTab
+      ? (cdTab===it.cd_std
+          ? `<span class="status-ok">✓ ${cdTab}</span>`
+          : (it.rank===1 ? `<span class="status-err">✗ Tabela: ${cdTab}</span>` : `<span style="color:var(--muted2)">${cdTab}</span>`))
+      : `<span style="color:var(--muted2)">Não mapeada</span>`;
+    tb.insertAdjacentHTML('beforeend',`<tr>
+      <td><b>${it.cd_std}</b><div style="font-size:11px;color:var(--muted2)">${it.cd}</div></td>
+      <td>${fmtKm(it.km)}</td>
+      <td>${rank}</td>
+      <td>${tabMatch}</td>
+    </tr>`);
+  });
+}
+
+// ── COMPARAÇÃO TABELA vs IDEAL ──
+function renderComparacao(ranked, destCidade){
+  const box=$('tabCompar');
+  const inner=$('tabComparBox');
+  if(!destCidade){box.style.display='none';return;}
+  const cdTab=cdTabela(destCidade);
+  const cd1=ranked[0]?.cd_std;
+  box.style.display='block';
+  if(!cdTab){
+    inner.innerHTML=`<div class="warnbox">⚠️ <b>${destCidade}</b> não está na tabela oficial de atendimento. Cidade não mapeada.</div>`;
+    return;
+  }
+  if(cdTab===cd1){
+    const cd1obj = ranked.find(r=>r.cd_std===cd1);
+    inner.innerHTML=`<div class="infobox">✅ <b>Tabela e distância coincidem!</b> Para <b>${destCidade}</b>, a tabela indica <b>${cdTab}</b> <span style="font-family:monospace;color:var(--accent)">(${cd1obj?.codigo||''})</span> — que também é o CD mais próximo por distância.</div>`;
+  } else {
+    inner.innerHTML=`<div class="warnbox">⚠️ <b>Divergência detectada!</b> Para <b>${destCidade}</b>:<br>
+      • Tabela GHA indica: <b>${cdTab}</b><br>
+      • CD mais próximo por distância: <b>${cd1}</b> (${fmtKm(ranked[0]?.km)})<br>
+      Verifique se a tabela está atualizada ou se há razão comercial para o desvio.</div>`;
+  }
+}
+
+// ── MAPA ──
+let map, markersGroup, linesGroup, lastPlot=null;
+
+function ensureMap(){
+  if(map) return;
+  try{
+    map=L.map('map',{zoomControl:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,attribution:'&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    markersGroup=L.layerGroup().addTo(map);
+    linesGroup=L.layerGroup().addTo(map);
+    // Mostrar todos os CDs no mapa inicial
+    const bounds=[];
+    CDS.forEach(cd=>{
+      const m=L.circleMarker([cd.lat,cd.lon],{radius:7,weight:2,color:'#34d399',fillColor:'#34d399',fillOpacity:.85}).addTo(markersGroup);
+      m.bindPopup(`<b>${cd.codigo}</b> — ${cd.cd_std}<br/>CEP: ${cd.cep}`);
+      bounds.push([cd.lat,cd.lon]);
+    });
+    if(bounds.length) map.fitBounds(bounds,{padding:[30,30]});
+    $('btnFit').addEventListener('click',()=>fitAll());
+    if(lastPlot) plotAll(lastPlot.dest,lastPlot.ranked);
+  }catch(e){
+    console.warn('Erro ao inicializar mapa:', e);
+  }
+}
+
+function plotAll(dest,ranked){
+  if(!map) return;
+  markersGroup.clearLayers();linesGroup.clearLayers();
+  const bounds=[];
+  ranked.forEach((cd,i)=>{
+    const color=i===0?'#34d399':(i===1?'#fbbf24':'#94a3b8');
+    const r=i===0?9:(i===1?8:6);
+    const m=L.circleMarker([cd.lat,cd.lon],{radius:r,weight:2,color,fillColor:color,fillOpacity:.9}).addTo(markersGroup);
+    m.bindPopup(`<b>${cd.cd_std}</b><br/>${cd.cd}<br/><b>${fmtKm(cd.km)}</b><br/>CEP: ${cd.cep}`);
+    bounds.push([cd.lat,cd.lon]);
+  });
+  const md=L.circleMarker([dest.lat,dest.lon],{radius:9,weight:2,color:'#7dd3fc',fillColor:'#7dd3fc',fillOpacity:.9}).addTo(markersGroup);
+  md.bindPopup(`<b>Destino</b><br/>${dest.cidade||''}/${dest.uf||''}`);
+  bounds.push([dest.lat,dest.lon]);
+  const f=ranked[0],s=ranked[1];
+  if(f) L.polyline([[dest.lat,dest.lon],[f.lat,f.lon]],{color:'#34d399',weight:4,opacity:.9}).addTo(linesGroup);
+  if(s) L.polyline([[dest.lat,dest.lon],[s.lat,s.lon]],{color:'#fbbf24',weight:4,opacity:.9,dashArray:'6 8'}).addTo(linesGroup);
+  if(bounds.length) map.fitBounds(bounds,{padding:[30,30]});
+  $('mapStatus').textContent=`Destino + linhas para 1º (${f?.cd_std}) e 2º (${s?.cd_std}).`;
+  map.invalidateSize();
+}
+
+function fitAll(){
+  if(!map) return;
+  if(lastPlot){
+    const b=[...lastPlot.ranked.map(c=>[c.lat,c.lon]),[lastPlot.dest.lat,lastPlot.dest.lon]];
+    map.fitBounds(b,{padding:[30,30]});
+  }
+}
+
+// ── CALCULAR ──
+async function calc(){
+  $('btnCalc').disabled=true;
+  msg('Calculando…',false);
+  try{
+    const dest=await getDestCoords();
+    const ranked=CDS.map(cd=>({...cd,km:haversine(dest.lat,dest.lon,cd.lat,cd.lon)}))
+      .sort((a,b)=>a.km-b.km);
+    ranked.forEach((x,i)=>x.rank=i+1);
+
+    $('kpi1').textContent=ranked[0].codigo;
+    $('kpi1d').textContent=`${ranked[0].cd_std} • ${fmtKm(ranked[0].km)}`;
+    $('kpi2').textContent=ranked[1].codigo;
+    $('kpi2d').textContent=`${ranked[1].cd_std} • ${fmtKm(ranked[1].km)}`;
+
+    $('resultEmpty').style.display='none'; $('resultContent').style.display='block';
+    const cidadeNome = dest.cidade || $('cidade').value.trim();
+    renderRanking(ranked, cidadeNome);
+    renderComparacao(ranked, cidadeNome);
+
+    msg(`Geocodificado: ${dest.display||''}`,false);
+    cacheCount();
+    lastPlot={dest,ranked};
+    ensureMap();
+    if(map) plotAll(dest,ranked);
+    else setTimeout(()=>{ ensureMap(); plotAll(dest,ranked); },300);
+  }catch(e){
+    msg(e.message||String(e),true);
+  }finally{
+    $('btnCalc').disabled=false;
+  }
+}
+
+async function applyCepToFields(){
+  const cep=$('cep').value.trim();
+  if(!cep){msg('Informe um CEP.',true);return;}
+  try{
+    msg('Consultando ViaCEP…',false);
+    const v=await viaCep(cep);
+    $('uf').value=v.uf||'';$('cidade').value=v.cidade||'';
+    msg(`CEP resolvido: ${v.cidade}/${v.uf}`,false);cacheCount();
+  }catch(e){msg(e.message||String(e),true);}
+}
+
+$('btnCalc').addEventListener('click',calc);
+$('btnSwap') && $('btnSwap').addEventListener('click',applyCepToFields);
+
+// Preenchimento automático ao completar 8 dígitos no CEP
+$('cep').addEventListener('input', async ()=>{
+  const digits = onlyDigits($('cep').value);
+  if(digits.length === 8){
+    try{
+      msg('Consultando CEP…', false);
+      const v = await viaCep(digits);
+      $('uf').value = v.uf || '';
+      $('cidade').value = v.cidade || '';
+      msg(`✓ CEP encontrado: ${v.cidade}/${v.uf}`, false);
+      cacheCount();
+    }catch(e){
+      msg(e.message || String(e), true);
+    }
+  }
+});
+$('btnNova').addEventListener('click',()=>{
+  // limpa campos
+  ['cep','uf','cidade'].forEach(id=>$(id).value='');
+  // limpa resultados
+  $('kpi1').textContent='—'; $('kpi1d').textContent='';
+  $('kpi2').textContent='—'; $('kpi2d').textContent='';
+  $('tbodyAll').innerHTML='<tr><td class="m" colspan="4">Faça uma consulta para ver o ranking.</td></tr>';
+  $('tabCompar').style.display='none';
+  $('tabComparBox').innerHTML='';
+  $('resultEmpty').style.display='block';
+  $('resultContent').style.display='none';
+  msg('',false);
+  lastPlot=null;
+  // reset mapa: volta a mostrar só os CDs
+  if(map && markersGroup && linesGroup){
+    markersGroup.clearLayers();
+    linesGroup.clearLayers();
+    const bounds=[];
+    CDS.forEach(cd=>{
+      const m=L.circleMarker([cd.lat,cd.lon],{radius:7,weight:2,color:'#34d399',fillColor:'#34d399',fillOpacity:.85}).addTo(markersGroup);
+      m.bindPopup(`<b>${cd.codigo}</b> — ${cd.cd_std}<br/>CEP: ${cd.cep}`);
+      bounds.push([cd.lat,cd.lon]);
+    });
+    if(bounds.length) map.fitBounds(bounds,{padding:[30,30]});
+    $('mapStatus').textContent='Faça uma consulta para ver o destino no mapa.';
+  }
+  $('cep').focus();
+});
+$('btnClearCache').addEventListener('click',()=>{
+  const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('CDID_'))keys.push(k);}
+  keys.forEach(k=>localStorage.removeItem(k));cacheCount();msg('Cache limpo.',false);
+});
+['cep','uf','cidade'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();calc();}}));
+
+// ══════════════════════════════════════════
+// ABA TABELA
+// ══════════════════════════════════════════
+
+// Pre-calcular CD ideal por distância para cada cidade da tabela
+// (usa geocoding offline com coordenadas embutidas para as principais cidades)
+// Para as demais, mostra apenas o dado da tabela
+const CIDADE_COORDS_SAMPLE = {
+  'ABADIA DOS DOURADOS':[-18.4858,-47.3953],
+  'ABAETE':[-19.1553,-45.4431],
+  'ADAMANTINA':[-21.6867,-51.0728],
+  'AGUA CLARA':[-20.4428,-52.875],
+  'AGUAS DA PRATA':[-21.9317,-46.7142],
+  'AGUAS DE LINDOIA':[-22.4789,-46.6317],
+  'AGUAS DE STA BARBARA':[-22.8833,-49.2333],
+  'AGUAS LINDAS DE GOIAS':[-15.7458,-48.2819],
+  'AGUDOS':[-22.4689,-48.9836],
+  'ALCINOPOLIS':[-18.3167,-53.7],
+  'ALTINOPOLIS':[-21.0258,-47.3714],
+  'ALTO ALEGRE':[-20.8667,-49.9728],
+  'ALUMINIO':[-23.5375,-47.2519],
+  'ALVARES MACHADO':[-22.0736,-51.4758],
+  'ALVARO CARVALHO':[-22.0947,-49.7272],
+  'ALVINLANDIA':[-22.4333,-49.7833],
+  'AMAMBAI':[-23.1053,-55.225],
+  'AMERICANA':[-22.7383,-47.3333],
+  'AMERICO BRASILIENSE':[-21.7281,-48.1064],
+  'AMPARO':[-22.7035,-46.7719],
+  'ANAPOLIS':[-16.3281,-48.9531],
+  'ANASTACIO':[-20.4853,-55.8153],
+  'ANAURILANDIA':[-21.9744,-52.7217],
+  'ANDRADINA':[-20.8942,-51.3789],
+  'ANGATUBA':[-23.4917,-48.4169],
+  'ANGELICA':[-22.1517,-53.7578],
+  'ANTONIO JOAO':[-22.1958,-55.9519],
+  'APARECIDA':[-22.8489,-45.2328],
+  'APARECIDA DO TABOADO':[-20.0867,-51.0928],
+  'APIAI':[-24.5108,-48.8439],
+  'AQUIDAUANA':[-20.4711,-55.7869],
+  'ARACARIGUAMA':[-23.4358,-47.0633],
+  'ARACATUBA':[-21.2089,-50.4322],
+  'ARAGUARI':[-18.6481,-48.1906],
+  'ARAL MOREIRA':[-23.0167,-55.6333],
+  'ARARAQUARA':[-21.7845,-48.176],
+  'ARARAS':[-22.3586,-47.3839],
+  'ARAXA':[-19.5936,-46.9414],
+  'ARCO IRIS':[-21.5731,-50.4608],
+  'AREALVA':[-22.0197,-48.9111],
+  'AREIAS':[-22.5833,-44.7],
+  'ARTUR NOGUEIRA':[-22.5731,-47.1742],
+  'ARUJA':[-23.3961,-46.3208],
+  'ASSIS':[-22.661,-50.4117],
+  'ATIBAIA':[-23.117,-46.5507],
+  'AURIFLAMA':[-20.6853,-50.5569],
+  'AVAI':[-22.1503,-49.3089],
+  'AVANHANDAVA':[-21.4583,-49.9492],
+  'AVARE':[-23.1008,-48.9247],
+  'BADY BASSIT':[-20.9039,-49.4419],
+  'BALBINOS':[-21.8597,-49.1944],
+  'BALSAMO':[-20.7417,-49.5747],
+  'BANDEIRANTES':[-23.1083,-50.365],
+  'BARBOSA':[-21.23,-50.3094],
+  'BARIRI':[-22.0753,-48.7397],
+  'BARRA BONITA':[-22.4928,-48.5561],
+  'BARRETOS':[-20.5566,-48.5672],
+  'BARUERI':[-23.5056,-46.8756],
+  'BASTOS':[-21.9228,-50.7333],
+  'BATAGUASSU':[-21.7158,-52.4239],
+  'BATATAIS':[-20.89,-47.5894],
+  'BATAYPORA':[-22.2933,-53.2697],
+  'BAURU':[-22.3154,-49.0608],
+  'BEBEDOURO':[-20.9489,-48.4778],
+  'BELA VISTA':[-22.1078,-56.5228],
+  'BELO HORIZONTE':[-19.9191,-43.9386],
+  'BERNARDINO DE CAMPOS':[-23.0106,-49.4744],
+  'BILAC':[-21.4069,-50.2911],
+  'BIRIGUI':[-21.2886,-50.3403],
+  'BOCAINA':[-22.1392,-48.5153],
+  'BODOQUENA':[-20.5394,-56.7153],
+  'BOITUVA':[-23.2839,-47.6736],
+  'BONITO':[-21.1239,-56.4769],
+  'BORACEIA':[-22.2025,-48.76],
+  'BORBOREMA':[-21.6169,-49.0744],
+  'BOREBI':[-22.5136,-49.1139],
+  'BOTUCATU':[-22.8858,-48.445],
+  'BRAGANCA PAULISTA':[-22.9519,-46.5419],
+  'BRASILANDIA':[-21.2597,-52.0378],
+  'BRASILIA':[-15.7801,-47.9292],
+  'BRAUNA':[-21.3408,-50.4175],
+  'BRODOWSKI':[-20.9881,-47.6575],
+  'BROTAS':[-22.2842,-48.1244],
+  'BURI':[-23.7961,-48.61],
+  'CAARAPO':[-22.6244,-54.8156],
+  'CABRALIA PAULISTA':[-22.4575,-49.3592],
+  'CACAPAVA':[-23.0986,-45.7072],
+  'CACHOEIRA DOURADA DE MINAS':[-18.4833,-49.4667],
+  'CACHOEIRA PAULISTA':[-22.6858,-45.0075],
+  'CAFELANDIA':[-21.7986,-49.6117],
+  'CAIEIRAS':[-23.3597,-46.7408],
+  'CAJAMAR':[-23.3592,-46.8781],
+  'CAJOBI':[-20.9619,-48.8061],
+  'CAJURU':[-21.2839,-47.2939],
+  'CAMAPUA':[-19.5283,-54.0439],
+  'CAMPINA VERDE':[-19.5408,-49.4925],
+  'CAMPINAS':[-22.9056,-47.0608],
+  'CAMPO GRANDE':[-20.4697,-54.6201],
+  'CAMPO LIMPO PAULISTA':[-23.2119,-46.7894],
+  'CAMPOS ALTOS':[-19.6983,-46.1706],
+  'CAMPOS DO JORDAO':[-22.7394,-45.5912],
+  'CAMPOS NOVOS PAULISTA':[-22.8128,-50.0208],
+  'CANAPOLIS':[-18.7358,-49.2278],
+  'CANAS':[-22.6775,-45.08],
+  'CANDIDO MOTA':[-22.7494,-50.3875],
+  'CAPAO BONITO':[-24.0044,-48.3489],
+  'CAPINA DO MONTE ALEGRE':[-23.6278,-47.9961],
+  'CAPINOPOLIS':[-18.6833,-49.5667],
+  'CAPIVARI':[-22.9972,-47.51],
+  'CARACOL':[-22.0219,-57.0217],
+  'CARAGUATATUBA':[-23.6158,-45.4125],
+  'CARAPICUIBA':[-23.5239,-46.8358],
+  'CARMO DO PARANAIBA':[-18.9906,-46.3156],
+  'CASA BRANCA':[-21.7742,-47.0736],
+  'CASSIA':[-20.5736,-46.9225],
+  'CASSILANDIA':[-19.1164,-51.7358],
+  'CATALAO':[-18.1653,-47.9478],
+  'CATANDUVA':[-21.138,-48.9726],
+  'CEDRAL':[-20.8983,-49.2811],
+  'CENTRALINA':[-18.5842,-49.1964],
+  'CERQUEIRA CESAR':[-23.0356,-49.165],
+  'CERQUILHO':[-23.1525,-47.7469],
+  'CESARIO LANGE':[-23.2256,-47.9525],
+  'CHAPADAO DO SUL':[-18.7889,-52.6261],
+  'CHARQUEADA':[-22.5094,-47.7753],
+  'CHAVANTES':[-23.0344,-49.7108],
+  'CLEMENTINA':[-21.5594,-50.1886],
+  'COLINA':[-20.7158,-48.5511],
+  'CONCEICAO DAS ALAGOAS':[-19.9186,-47.9686],
+  'CONCHAL':[-22.3275,-47.17],
+  'CONCORDIA':[-27.2342,-52.0278],
+  'CONQUSITA':[-19.9333,-47.55],
+  'CONTAGEM':[-19.9317,-44.0536],
+  'CORDEIROPOLIS':[-22.4783,-47.4575],
+  'CORGUINHO':[-19.8308,-54.9308],
+  'COROADOS':[-21.2342,-49.9808],
+  'COROMANDEL':[-18.4744,-47.1942],
+  'CORONEL SAPUCAIA':[-23.2717,-55.5289],
+  'CORREGO DO BOM JESUS':[-22.4833,-45.9667],
+  'CORUMBA':[-19.0078,-57.6539],
+  'CORUMBATAI':[-22.2833,-47.65],
+  'COSMOPOLIS':[-22.6456,-47.1969],
+  'COSTA RICA':[-18.5411,-53.1267],
+  'COTIA':[-23.6033,-46.9194],
+  'COXIM':[-18.5067,-54.7578],
+  'CRUZEIRO':[-22.5786,-44.9603],
+  'CURITIBA':[-25.4284,-49.2733],
+  'DELTA':[-19.9733,-47.7753],
+  'DEODAPOLIS':[-22.2817,-54.1597],
+  'DIVINOPOLIS':[-20.1389,-44.8839],
+  'DOIS CORREGOS':[-22.3653,-48.3808],
+  'DOIS IRMAOS DO BURITI':[-20.6783,-55.2839],
+  'DOURADINA':[-22.6433,-54.2592],
+  'DOURADOS':[-22.2231,-54.8117],
+  'DRACENA':[-21.4825,-51.5322],
+  'DUARTINA':[-22.3928,-49.4086],
+  'ELDORADO':[-24.5278,-48.1119],
+  'ENGENHEIRO COELHO':[-22.4894,-47.2183],
+  'ESPIRITO SANTO DO PINHAL':[-22.1908,-46.7444],
+  'ESPIRITO SANTO DO TURVO':[-22.6833,-49.3333],
+  'ESTIVA GERBI':[-22.2694,-46.9439],
+  'ESTRELA DO SUL':[-18.7378,-47.6892],
+  'FARTURA':[-23.3889,-49.5092],
+  'FATIMA DO SUL':[-22.5303,-54.4083],
+  'FERNANDO PRESTES':[-21.1747,-48.7],
+  'FERNANDOPOLIS':[-20.2838,-50.2461],
+  'FERNAO':[-22.3167,-49.4667],
+  'FIGUEIRAO':[-19.3733,-53.6728],
+  'FRANCA':[-20.5386,-47.4008],
+  'FRONTEIRA':[-20.2842,-49.24],
+  'FRUTAL':[-20.0258,-48.9361],
+  'GALIA':[-22.3333,-49.5556],
+  'GARCA':[-22.2119,-49.6567],
+  'GETULINA':[-21.7972,-49.9303],
+  'GLICERIO':[-21.3847,-49.9028],
+  'GLORIA DE DOURADOS':[-22.4117,-54.2347],
+  'GOIANIA':[-16.6869,-49.2648],
+  'GUAICARA':[-21.6033,-49.7031],
+  'GUAIMBE':[-22.0653,-49.8472],
+  'GUAIRA':[-20.3186,-48.3089],
+  'GUAPIACU':[-21.01,-49.0589],
+  'GUAPIARA':[-24.1897,-48.5297],
+  'GUARANTA':[-21.8939,-49.5847],
+  'GUARARAPES':[-21.2628,-50.6358],
+  'GUARAREMA':[-23.4128,-45.7692],
+  'GUARATINGUETA':[-22.8168,-45.195],
+  'GUARIBA':[-21.3586,-48.2247],
+  'GUARULHOS':[-23.4553,-46.5332],
+  'GUAXUPE':[-21.3069,-46.7122],
+  'GUIA LOPES DA LAGUNA':[-21.4639,-56.1117],
+  'GURINHATA':[-19.2322,-50.3797],
+  'HOLAMBRA':[-22.6417,-47.0642],
+  'HORTOLANDIA':[-22.8581,-47.2194],
+  'IACANGA':[-21.8753,-49.0261],
+  'IACRI':[-21.8353,-50.6925],
+  'IARAS':[-23.2,-49.1167],
+  'IBIA':[-19.4764,-46.545],
+  'IBIRA':[-21.0789,-49.2358],
+  'IBITINGA':[-21.7581,-48.8308],
+  'IBITURA DE MINAS':[-20.15,-46.5],
+  'IBIUNA':[-23.6564,-47.2228],
+  'IEPE':[-22.6628,-51.0825],
+  'IGARACU DO TIETE':[-22.5011,-48.5592],
+  'IGARAPAVA':[-20.0511,-47.7583],
+  'IGARATA':[-23.1958,-45.9925],
+  'IGUATEMI':[-23.6769,-54.5581],
+  'ILHA BELA':[-23.7753,-45.3583],
+  'ILHA COMPRIDA':[-24.6889,-47.5267],
+  'ILHA SOLTEIRA':[-20.4386,-51.3444],
+  'INDAIATUBA':[-23.0878,-47.2186],
+  'INDIANOPOLIS':[-19.0161,-47.9142],
+  'INOCENCIA':[-19.7281,-51.9278],
+  'IPATINGA':[-19.4722,-42.5367],
+  'IPAUSSU':[-23.0494,-49.6289],
+  'IPIGUA':[-20.6506,-49.3728],
+  'IRACEMAPOLIS':[-22.5825,-47.5167],
+  'IRAI DE MINAS':[-18.9819,-47.4939],
+  'ITABAIANA':[-10.6842,-37.4261],
+  'ITAI':[-23.4086,-49.0894],
+  'ITAJOBI':[-21.3106,-49.0578],
+  'ITAJU':[-22.5789,-49.0053],
+  'ITAPAGIPE':[-19.8806,-49.3756],
+  'ITAPECERICA DA SERRA':[-23.7172,-46.8506],
+  'ITAPETININGA':[-23.5913,-48.053],
+  'ITAPEVA':[-23.9825,-48.8759],
+  'ITAPEVI':[-23.5478,-47.0],
+  'ITAPIRA':[-22.4361,-46.8233],
+  'ITAPOLIS':[-21.5939,-48.8139],
+  'ITAPORA':[-22.0847,-54.7911],
+  'ITAPORANGA':[-23.7022,-49.4889],
+  'ITAPUI':[-22.2297,-48.7206],
+  'ITAQUAQUECETUBA':[-23.4856,-46.3489],
+  'ITAQUIRAI':[-23.4783,-54.1878],
+  'ITATIBA':[-23.0039,-46.8386],
+  'ITAU DE MINAS':[-20.7347,-46.7825],
+  'ITIRAPINA':[-22.2592,-47.8222],
+  'ITU':[-23.2644,-47.2992],
+  'ITUIUTABA':[-18.9714,-49.4656],
+  'ITUMBIARA':[-18.4186,-49.2147],
+  'ITUPEVA':[-23.1522,-47.0597],
+  'ITURAMA':[-19.7283,-50.1967],
+  'ITUVERAVA':[-20.3369,-47.7756],
+  'IVINHEMA':[-22.305,-53.8178],
+  'JABOTICABAL':[-21.2561,-48.3202],
+  'JACAREI':[-23.2994,-45.966],
+  'JACI':[-20.8894,-49.5969],
+  'JACUTINGA':[-22.2872,-46.6033],
+  'JAGUARIUNA':[-22.7028,-46.9861],
+  'JALES':[-20.2708,-50.5481],
+  'JANAUBA':[-15.8028,-43.3086],
+  'JAPORA':[-23.8958,-54.465],
+  'JARAGUA':[-15.7567,-49.3317],
+  'JARAGUARI':[-20.1397,-54.41],
+  'JARDIM':[-21.4808,-56.1383],
+  'JARINU':[-23.1028,-46.7308],
+  'JATEI':[-22.4847,-54.3025],
+  'JAU':[-22.2963,-48.5588],
+  'JOANOPOLIS':[-22.9333,-46.2833],
+  'JOSE BONIFACIO':[-21.0553,-49.6872],
+  'JUIZ DE FORA':[-21.7642,-43.3503],
+  'JULIO MESQUITA':[-21.9197,-49.7672],
+  'JUNDIAI':[-23.1857,-46.8977],
+  'JUTI':[-22.8594,-54.6039],
+  'LADARIO':[-19.0058,-57.5967],
+  'LAGUNA CARAPA':[-22.5289,-55.1583],
+  'LARANJAL PAULISTA':[-23.0456,-47.8394],
+  'LEME':[-22.1875,-47.39],
+  'LENCOIS PAULISTA':[-22.5989,-48.8017],
+  'LIMEIRA':[-22.5642,-47.4018],
+  'LINDOIA':[-22.52,-46.6519],
+  'LINS':[-21.6778,-49.7427],
+  'LONDRINA':[-23.3045,-51.1696],
+  'LORENA':[-22.7319,-45.1234],
+  'LOUVEIRA':[-23.0856,-46.9494],
+  'LUCIANOPOLIS':[-22.3594,-49.4222],
+  'LUPERCIO':[-22.2739,-49.7361],
+  'LUZIANIA':[-16.2528,-47.95],
+  'MACATUBA':[-22.4978,-48.7097],
+  'MAIRINQUE':[-23.5411,-47.1878],
+  'MAIRIPORA':[-23.3167,-46.5833],
+  'MANDURI':[-23.0028,-49.3211],
+  'MARACAI':[-22.3869,-50.6631],
+  'MARACAJU':[-21.6106,-55.1669],
+  'MARILIA':[-22.2139,-49.9456],
+  'MARINGA':[-23.4205,-51.9333],
+  'MARTINOPOLIS':[-22.1508,-51.1708],
+  'MATAO':[-21.6028,-48.3647],
+  'MATUTINA':[-19.2333,-46.0],
+  'MINEIROS DO TIETE':[-22.4122,-48.4503],
+  'MIRA ESTRELA':[-20.2167,-49.95],
+  'MIRANDA':[-20.2433,-56.3767],
+  'MIRANDOPOLIS':[-21.1344,-51.0994],
+  'MIRASSOL':[-20.8143,-49.5119],
+  'MOCOCA':[-21.4728,-47.0083],
+  'MOGI DAS CRUZES':[-23.5228,-46.1872],
+  'MOGI GUACU':[-22.3728,-46.9414],
+  'MOGI-MIRIM':[-22.4319,-46.9566],
+  'MOMBUCA':[-22.9333,-47.7333],
+  'MONTE ALEGRE DE MINAS':[-18.8742,-48.8817],
+  'MONTE ALTO':[-21.2594,-48.5014],
+  'MONTE APRAZIVEL':[-20.7714,-49.7178],
+  'MONTE AZUL PAULISTA':[-20.91,-48.605],
+  'MONTE CARMELO':[-18.7272,-47.5003],
+  'MONTE MOR':[-22.9406,-47.2703],
+  'MONTE SANTO DE MINAS':[-21.1939,-46.9822],
+  'MONTEIRO LOBATO':[-22.9453,-45.8386],
+  'MONTES CLAROS':[-16.7286,-43.8617],
+  'MORRO AGUDO':[-20.7289,-48.0578],
+  'MORUNGABA':[-22.8847,-46.7917],
+  'MUNDO NOVO':[-23.94,-54.2769],
+  'MURIAE':[-21.1294,-42.3661],
+  'MUZAMBINHO':[-21.37,-46.5244],
+  'NATIVIDADE DA SERRA':[-23.3633,-45.4372],
+  'NAVIRAI':[-23.0614,-54.1897],
+  'NAZARE PTA':[-23.18,-46.395],
+  'NIOAQUE':[-21.1422,-55.8317],
+  'NOSSA SENHORA DO SOCORRO':[-10.8558,-37.1278],
+  'NOVA ALVORADA DO SUL':[-21.4644,-54.3822],
+  'NOVA ANDRADINA':[-22.2344,-53.3428],
+  'NOVA CAMPINA':[-24.0319,-48.8928],
+  'NOVA ODESSA':[-22.7783,-47.2939],
+  'NOVA PONTE':[-19.1267,-47.6811],
+  'NOVAIS':[-21.0272,-48.755],
+  'NOVO HAMBURGO':[-29.6783,-51.1314],
+  'NOVO HORIZONTE':[-21.4806,-49.2178],
+  'NOVO HORIZONTE DO SUL':[-22.5333,-53.85],
+  'OCAUCU':[-22.3181,-49.8819],
+  'OLIMPIA':[-20.7361,-48.9097],
+  'ONDA VERDE':[-20.5961,-49.2975],
+  'OSASCO':[-23.5329,-46.7916],
+  'OSVALDO CRUZ':[-21.7958,-50.8775],
+  'OURINHOS':[-22.9794,-49.8697],
+  'OURO VERDE':[-21.4669,-51.7017],
+  'PALESTINA':[-20.3942,-49.4278],
+  'PALMEIRA DO OESTE':[-20.4147,-50.7583],
+  'PALMITAL':[-22.785,-50.2139],
+  'PANORAMA':[-21.3572,-51.8608],
+  'PARAGUACU PAULISTA':[-22.4128,-50.5739],
+  'PARAIBUNA':[-23.3803,-45.6614],
+  'PARAISO':[-21.0236,-48.7369],
+  'PARANAIBA':[-18.9942,-51.1908],
+  'PARANAPANEMA':[-23.3878,-48.7236],
+  'PARANHOS':[-23.8908,-55.4269],
+  'PARAPUA':[-21.7822,-50.795],
+  'PARDINHO':[-23.0861,-48.5244],
+  'PASSOS':[-20.7189,-46.6092],
+  'PATOS DE MINAS':[-18.5788,-46.5175],
+  'PATROCINIO':[-18.9408,-46.9928],
+  'PATROCINIO PAULISTA':[-20.0369,-47.28],
+  'PAULINIA':[-22.7592,-47.1553],
+  'PAULISTANIA':[-22.1894,-49.4119],
+  'PEDERNEIRAS':[-22.3497,-48.7742],
+  'PEDRA BELA':[-23.0333,-46.45],
+  'PEDRANOPOLIS':[-20.2333,-50.75],
+  'PEDREIRA':[-22.7408,-46.9019],
+  'PEDRINOPOLIS':[-19.2,-47.4667],
+  'PEDRO GOMES':[-18.1,-54.55],
+  'PENAPOLIS':[-21.4206,-50.0755],
+  'PERDIZES':[-19.3461,-47.2889],
+  'PEREIRA BARRETO':[-20.6367,-51.1036],
+  'PEREIRAS':[-23.0831,-48.0683],
+  'PIEDADE':[-23.7097,-47.4294],
+  'PILAR DO SUL':[-23.8094,-47.7197],
+  'PINDAMONHANGABA':[-22.9228,-45.4614],
+  'PINDORAMA':[-21.1869,-48.9133],
+  'PINHALZINHO':[-22.7764,-46.5892],
+  'PIQUETE':[-22.6133,-45.1756],
+  'PIRACAIA':[-23.0511,-46.3583],
+  'PIRACICABA':[-22.7253,-47.6492],
+  'PIRAJU':[-23.1944,-49.3819],
+  'PIRAJUBA':[-20.4539,-48.6519],
+  'PIRAJUI':[-21.9994,-49.4569],
+  'PIRAPORA':[-17.3419,-44.9383],
+  'PIRASSUNUNGA':[-21.9958,-47.4267],
+  'PIRATININGA':[-22.4156,-49.2175],
+  'PIRENOPOLIS':[-15.8508,-48.9597],
+  'PITANGUEIRAS':[-21.0075,-48.2228],
+  'PIUMHI':[-20.4678,-45.9572],
+  'POA':[-23.525,-46.3428],
+  'POCOS DE CALDAS':[-21.7878,-46.5614],
+  'POLONI':[-20.7811,-49.8244],
+  'POMPEIA':[-22.1078,-50.1764],
+  'PONGAI':[-21.7758,-49.3828],
+  'PONTA PORA':[-22.5364,-55.7258],
+  'POPULINA':[-20.4858,-50.1706],
+  'PORTO FELIZ':[-23.2142,-47.5244],
+  'PORTO FERREIRA':[-21.8494,-47.4794],
+  'PORTO MURTINHO':[-21.6992,-57.8836],
+  'POTIM':[-22.8217,-45.3617],
+  'POUSO ALEGRE':[-22.2297,-45.9358],
+  'PRATA':[-19.3083,-48.9258],
+  'PRATANIA':[-22.6278,-48.6644],
+  'PRES. BERNARDES':[-22.0064,-51.4894],
+  'PRES. EPITACIO':[-21.7678,-52.1044],
+  'PRES. PRUDENTE':[-22.1256,-51.3889],
+  'PRES. VENCESLAU':[-21.8769,-51.8456],
+  'PRESIDENTE OLEGARIO':[-18.4119,-46.4261],
+  'PRESIDENTE PRUDENTE':[-22.1256,-51.3889],
+  'PRESIDENTE VENCESLAU':[-21.8769,-51.8456],
+  'PROMISSAO':[-21.5378,-49.8611],
+  'QUELUZ':[-22.5261,-44.7778],
+  'RAFARD':[-22.9839,-47.5289],
+  'RANCHARIA':[-22.2289,-50.8917],
+  'REDENCAO DA SERRA':[-23.2653,-45.5358],
+  'REGENTE FEIJO':[-22.2178,-51.3072],
+  'REGINOPOLIS':[-21.8878,-49.2036],
+  'REGISTRO':[-24.4897,-47.8431],
+  'RIBAS DO RIO PARDO':[-20.4433,-53.7589],
+  'RIBEIRAO BRANCO':[-24.2194,-48.7672],
+  'RIBEIRAO DO SUL':[-22.9756,-49.9711],
+  'RIBEIRAO GRANDE':[-24.1042,-48.3628],
+  'RIBEIRAO PRETO':[-21.1775,-47.8103],
+  'RINOPOLIS':[-21.7283,-50.7244],
+  'RIO BRILHANTE':[-21.8017,-54.5461],
+  'RIO CLARO':[-22.4156,-47.5603],
+  'RIO DAS PEDRAS':[-22.8444,-47.6122],
+  'RIO NEGRO':[-26.1008,-49.7939],
+  'RIO VERDE DO MATO GROSSO':[-18.9208,-54.8444],
+  'RIVERSUL':[-23.8667,-49.4333],
+  'ROCHEDO':[-19.9597,-54.8889],
+  'ROMARIA':[-18.8822,-47.5783],
+  'ROSEIRA':[-22.8972,-45.3053],
+  'SABINO':[-21.4442,-49.5242],
+  'SACRAMENTO':[-19.8581,-47.4408],
+  'SALTO':[-23.2003,-47.288],
+  'SALTO DE PIRAPORA':[-23.6467,-47.5728],
+  'SANTA ADELIA':[-21.2397,-48.8028],
+  'SANTA BARBARA':[-22.7537,-47.4142],
+  'SANTA BRANCA':[-23.3969,-45.8839],
+  'SANTA CRUZ DA CONCEICAO':[-22.6,-47.7667],
+  'SANTA CRUZ DAS PALMEIRAS':[-21.8211,-47.2519],
+  'SANTA CRUZ DO RIO PARDO':[-22.8978,-49.6344],
+  'SANTA FE DO SUL':[-20.21,-50.9278],
+  'SANTA GERTRUDES':[-22.4614,-47.5311],
+  'SANTA JULIANA':[-19.3078,-47.53],
+  'SANTA RITA DO PARDO':[-21.3,-52.8333],
+  'SANTA RITA DO PASSA QUATRO':[-21.7069,-47.4739],
+  'SANTA VITORIA':[-18.85,-50.1214],
+  'SANTANA DE PARNAIBA':[-23.4439,-46.9167],
+  'SANTO ANASTACIO':[-21.9769,-51.6561],
+  'SANTO ANDRE':[-23.6639,-46.5383],
+  'SANTO ANTONIO DA POSSE':[-22.6058,-46.9222],
+  'SANTO ANTONIO DO JARDIM':[-22.1,-46.6833],
+  'SANTO ANTONIO DO PINHAL':[-22.8222,-45.6611],
+  'SANTOS':[-23.9608,-46.3336],
+  'SAO BENTO DO SAPUCAI':[-22.6892,-45.7317],
+  'SAO CARLOS':[-21.9799,-47.8906],
+  'SAO GABRIEL DO OESTE':[-19.3914,-54.5608],
+  'SAO GOTARDO':[-19.3122,-46.0467],
+  'SAO JOAO DA BOA VISTA':[-21.97,-46.7939],
+  'SAO JOAQUIM DA BARRA':[-20.5833,-47.8578],
+  'SAO JOSE DO RIO PARDO':[-21.5972,-46.8908],
+  'SAO JOSE DO RIO PRETO':[-20.8113,-49.3758],
+  'SAO JOSE DOS CAMPOS':[-23.1791,-45.8872],
+  'SAO JOSE DOS PINHAIS':[-25.5369,-49.2073],
+  'SAO LUIZ DO PARAITINGA':[-23.2211,-45.3072],
+  'SAO MANUEL':[-22.7308,-48.5706],
+  'SAO MIGUEL ARCANJO':[-23.8717,-47.9953],
+  'SAO PAULO':[-23.5505,-46.6333],
+  'SAO PEDRO':[-22.5478,-47.9139],
+  'SAO PEDRO DO TURVO':[-22.7494,-49.7111],
+  'SAO ROQUE':[-23.5261,-47.1375],
+  'SAO SEBASTIAO':[-23.7964,-45.4017],
+  'SAO SEBASTIAO DO PARAISO':[-20.9153,-47.1036],
+  'SAO SIMAO':[-21.4817,-47.5528],
+  'SAO VICENTE':[-23.9603,-46.3886],
+  'SARUTAIA':[-23.2811,-49.5211],
+  'SEBASTIANOPOLIS DO SUL':[-20.4958,-50.0253],
+  'SELVIRIA':[-20.3667,-51.4167],
+  'SERRA DO SALITRE':[-19.1119,-46.6928],
+  'SERRA NEGRA':[-22.6128,-46.7],
+  'SERRANA':[-21.2217,-47.5928],
+  'SERTAOZINHO':[-21.1383,-47.99],
+  'SETE QUEDAS':[-23.9667,-55.0333],
+  'SEVERINIA':[-20.8042,-48.8028],
+  'SIDROLANDIA':[-20.9311,-54.9608],
+  'SILVEIRAS':[-22.6667,-44.85],
+  'SOCORRO':[-22.5903,-46.5275],
+  'SONORA':[-17.5833,-54.75],
+  'SOROCABA':[-23.5015,-47.4526],
+  'STA ISABEL':[-23.3144,-46.2217],
+  'SUMARE':[-22.8194,-47.2678],
+  'SUZANO':[-23.5428,-46.3106],
+  'TABAPUA':[-21.0572,-49.0189],
+  'TABOAO DA SERRA':[-23.6044,-46.7572],
+  'TACURU':[-23.6333,-55.0167],
+  'TAGUAI':[-23.4522,-49.4011],
+  'TAIACU':[-21.0961,-48.6503],
+  'TANAPI':[-20.6261,-49.6533],
+  'TAQUARAL':[-21.5908,-47.7592],
+  'TAQUARITUBA':[-23.5328,-49.2444],
+  'TAQUARIVAI':[-24.0711,-48.6733],
+  'TAQUARUSSU':[-22.4947,-53.3433],
+  'TATUI':[-23.3564,-47.8581],
+  'TAUBATE':[-23.0246,-45.5554],
+  'TERENOS':[-20.4417,-54.8631],
+  'TIETE':[-23.1,-47.7167],
+  'TIMOTEO':[-19.5844,-42.6453],
+  'TREMEMBE':[-22.9594,-45.5458],
+  'TRES CORACOES':[-21.6911,-45.2578],
+  'TRES LAGOAS':[-20.7864,-51.7039],
+  'TUPA':[-21.9353,-50.5133],
+  'TUPACIGUARA':[-18.5919,-48.7022],
+  'TUPI PAULISTA':[-21.3844,-51.5739],
+  'TURMALINA':[-17.2839,-42.7267],
+  'UBATUBA':[-23.4336,-45.0838],
+  'UBERABA':[-19.7472,-47.9381],
+  'UBERLANDIA':[-18.9189,-48.2769],
+  'UBERLÂNDIA':[-18.9189,-48.2769],
+  'UBIRAJARA':[-21.8911,-49.4808],
+  'UNAI':[-16.36,-46.9017],
+  'VALENTIN GENTIL':[-20.3958,-49.9256],
+  'VALINHOS':[-22.9714,-46.9961],
+  'VALPARAISO':[-21.2286,-51.0564],
+  'VARGEM GRANDE DO SUL':[-21.8272,-46.8983],
+  'VARGINHA':[-21.5514,-45.4303],
+  'VARZEA PAULISTA':[-23.2111,-46.8278],
+  'VERA CRUZ':[-22.2203,-49.8197],
+  'VICENTINA':[-22.4167,-54.4333],
+  'VINHEDO':[-23.0294,-46.975],
+  'VIRADOURO':[-20.8697,-48.3003],
+  'VITORIA BRASIL':[-20.2167,-50.4833],
+  'VOTORANTIM':[-23.5489,-47.4344],
+  'VOTUPORANGA':[-20.4236,-49.9737]
+};
+
+function cdIdealPorDistancia(cidadeNome){
+  const k = norm(cidadeNome);
+  let coords = null;
+  // tentar match exato
+  for(const [c,v] of Object.entries(CIDADE_COORDS_SAMPLE)){
+    if(norm(c)===k){coords=v;break;}
+  }
+  if(!coords) return null;
+  let best=null,bestD=Infinity;
+  CDS.forEach(cd=>{
+    const d=haversine(coords[0],coords[1],cd.lat,cd.lon);
+    if(d<bestD){bestD=d;best={cd:cd.cd_std,km:d};}
+  });
+  return best;
+}
+
+// Construir lista da tabela com CD ideal pré-calculado
+const TABELA_LIST = TABELA_RAW.map((r,i)=>{
+  const cdIdeal = cdIdealPorDistancia(r.cidade);
+  // distância da cidade até o CD que a tabela indica
+  const coords = Object.entries(CIDADE_COORDS_SAMPLE).find(([k])=>norm(k)===norm(r.cidade));
+  let distTabela = null;
+  if(coords){
+    const cdObj = CDS.find(c=>c.cd_std===r.cd);
+    if(cdObj) distTabela = Math.round(haversine(coords[1][0],coords[1][1],cdObj.lat,cdObj.lon));
+  }
+  return { idx:i+1, cidade:r.cidade, cd:r.cd, cdIdeal, distTabela };
+});
+
+// ── RENDER TABELA ──
+let tabelaFiltro='TODOS', tabelaBusca='', tabelaPage=1;
+const TABELA_PAGE_SIZE=20;
+
+function filteredTabela(){
+  return TABELA_LIST.filter(r=>{
+    const matchCD = tabelaFiltro==='TODOS' || r.cd===tabelaFiltro;
+    const matchBusca = !tabelaBusca || norm(r.cidade).includes(norm(tabelaBusca));
+    return matchCD && matchBusca;
+  });
+}
+
+function statusTabela(r){
+  if(!r.cdIdeal) return '<span style="color:var(--muted2);font-size:12px">Sem coords</span>';
+  if(r.cd===r.cdIdeal.cd) return `<span class="status-ok">✓ Coincide</span>`;
+  return `<span class="status-err">⚠ Diverge</span>`;
+}
+
+function renderTabela(){
+  const list=filteredTabela();
+  const total=list.length;
+  const start=(tabelaPage-1)*TABELA_PAGE_SIZE;
+  const slice=list.slice(start,start+TABELA_PAGE_SIZE);
+  const tb=$('tbodyTabela'); tb.innerHTML='';
+  if(!slice.length){
+    tb.innerHTML=`<tr><td class="m" colspan="6">Nenhuma cidade encontrada.</td></tr>`;
+  } else {
+    slice.forEach((r,i)=>{
+      const distTabelaTxt = r.distTabela != null
+        ? `<span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--text)">${r.distTabela} km</span>`
+        : '<span style="color:var(--muted2)">—</span>';
+      const idealTxt = r.cdIdeal
+        ? `${cdBadge(r.cdIdeal.cd)} <span style="font-size:11px;color:var(--muted2)">${Math.round(r.cdIdeal.km)} km</span>`
+        : '<span style="color:var(--muted2);font-size:12px">—</span>';
+      // highlight se a distância ideal for significativamente menor
+      const economia = (r.distTabela && r.cdIdeal) ? r.distTabela - Math.round(r.cdIdeal.km) : null;
+      const economiaTxt = (economia && economia > 20)
+        ? `<span style="font-size:11px;color:var(--good);margin-left:4px">−${economia} km</span>`
+        : '';
+      tb.insertAdjacentHTML('beforeend',`<tr>
+        <td style="color:var(--muted2);font-size:12px">${start+i+1}</td>
+        <td><b>${r.cidade}</b></td>
+        <td>${cdBadge(r.cd)}</td>
+        <td>${distTabelaTxt}</td>
+        <td>${idealTxt}${economiaTxt}</td>
+        <td>${statusTabela(r)}</td>
+      </tr>`);
+    });
+  }
+  $('tabelaInfo').textContent=`${start+1}–${Math.min(start+TABELA_PAGE_SIZE,total)} de ${total} cidades`;
+  renderTabelaPag(total);
+}
+
+function renderTabelaPag(total){
+  const pages=Math.ceil(total/TABELA_PAGE_SIZE);
+  const cont=$('tabelaPag'); cont.innerHTML='';
+  const mkBtn=(label,page,active,disabled)=>{
+    const b=document.createElement('button');
+    b.className='pgb'+(active?' active':'');b.textContent=label;b.disabled=!!disabled;
+    if(!disabled) b.onclick=()=>{tabelaPage=page;renderTabela();};
+    return b;
+  };
+  cont.appendChild(mkBtn('←',tabelaPage-1,false,tabelaPage===1));
+  const showPages=[];
+  for(let i=1;i<=pages;i++){
+    if(i===1||i===pages||Math.abs(i-tabelaPage)<=1) showPages.push(i);
+    else if(Math.abs(i-tabelaPage)===2) showPages.push('…');
+  }
+  const seen=new Set();
+  showPages.forEach(p=>{
+    if(seen.has(p)) return; seen.add(p);
+    if(p==='…'){const b=document.createElement('button');b.className='pgb';b.textContent='…';b.disabled=true;cont.appendChild(b);}
+    else cont.appendChild(mkBtn(p,p,p===tabelaPage,false));
+  });
+  cont.appendChild(mkBtn('→',tabelaPage+1,false,tabelaPage===pages||pages===0));
+}
+
+// ── FILTROS TABELA ──
+document.querySelectorAll('.cd-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    document.querySelectorAll('.cd-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    tabelaFiltro=chip.dataset.cd;
+    tabelaPage=1;
+    renderTabela();
+  });
+});
+$('tabelaSearch').addEventListener('input',e=>{
+  tabelaBusca=e.target.value;tabelaPage=1;renderTabela();
+});
+
+// ── TABS ──
+function setTab(name){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  ['consulta','tabela','cds'].forEach(v=>
+    $(`view-${v}`).classList.toggle('active',v===name)
+  );
+  if(name==='tabela') renderTabela();
+  if(name==='cds') renderCDs();
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+
+})();
+</script>
+</body>
+</html>
